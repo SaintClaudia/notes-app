@@ -1,7 +1,6 @@
 const { useState, useEffect, useRef, useCallback, useLayoutEffect } = React;
 
 const DEFAULT_CATEGORIES = ['Work', 'Tasks', 'Ideas', 'Lists'];
-const API_KEY_STORAGE = 'notesapp_apikey';
 
 const storageAdapter = {
   async get(key) {
@@ -72,11 +71,6 @@ function App() {
   const [editingId, setEditingId] = useState(null);
   const [viewingArchive, setViewingArchive] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
-  const [summary, setSummary] = useState('');
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [summaryErr, setSummaryErr] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const summaryTimer = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -89,8 +83,6 @@ function App() {
         const c = await storageAdapter.get('categories_v1');
         setCategories(c ? JSON.parse(c.value) : DEFAULT_CATEGORIES);
       } catch (e) { setCategories(DEFAULT_CATEGORIES); }
-      const savedKey = localStorage.getItem(API_KEY_STORAGE) || '';
-      setApiKey(savedKey);
 
       // Always open a fresh note on launch
       const n = newNote();
@@ -114,67 +106,6 @@ function App() {
     try { await storageAdapter.set('categories_v1', JSON.stringify(next)); } catch (e) {}
   }, []);
 
-  function saveApiKey(key) {
-    const trimmed = key.trim();
-    setApiKey(trimmed);
-    localStorage.setItem(API_KEY_STORAGE, trimmed);
-  }
-
-  const generateSummary = useCallback(async (currentNotes, key) => {
-    if (!key) {
-      setSummary('');
-      setSummaryErr('');
-      return;
-    }
-    setSummaryLoading(true);
-    setSummaryErr('');
-    try {
-      const body = currentNotes.filter(n => !n.archived && !isNoteEmpty(n)).map(n => {
-        const lines = n.blocks.filter(b => b.text && b.text.trim()).map(b => (b.type === 'check' ? '[ ] ' : '') + b.text.trim());
-        return `Note "${n.title || 'Untitled'}"${n.category ? ' (category: ' + n.category + ')' : ''}:\n${lines.join('\n')}`;
-      }).join('\n\n');
-
-      const prompt = `You are summarizing a personal notes app for the user's dashboard. Notes can mix plain text with checklist items (marked "[ ] "). Checklist items shown here are still active/pending — anything checked off has already been removed from the data. Notes may have a category.
-
-NOTES:
-${body || '(no notes yet)'}
-
-Write a short, plain, useful summary (4-8 lines max) of what's still active/pending, grouped by category where it makes sense. No markdown headers, no fluff. If there's nothing, say so briefly.`;
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 300,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setSummaryErr(data.error?.message || 'API error — check your key.');
-        return;
-      }
-      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
-      setSummary(text || 'No summary returned.');
-    } catch (e) {
-      setSummaryErr('Could not reach the API — check your connection.');
-    } finally {
-      setSummaryLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (notes === null) return;
-    if (summaryTimer.current) clearTimeout(summaryTimer.current);
-    summaryTimer.current = setTimeout(() => { generateSummary(notes, apiKey); }, 1200);
-    return () => { if (summaryTimer.current) clearTimeout(summaryTimer.current); };
-  }, [notes, apiKey, generateSummary]);
 
   if (notes === null) {
     return <div style={{ padding: '40px', color: 'var(--muted)' }}>loading<span className="cursor-blink"></span></div>;
@@ -233,8 +164,6 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
           <ArchiveList notes={notes} onOpenNote={openNote} onBack={() => setViewingArchive(false)} />
         ) : tab === 'dashboard' ? (
           <Dashboard notes={notes} categories={categories} storageOk={storageOk}
-            summary={summary} summaryLoading={summaryLoading} summaryErr={summaryErr}
-            apiKey={apiKey} onSaveApiKey={saveApiKey}
             onOpenNote={openNote} />
         ) : (
           <NotesList notes={notes} onOpenNote={openNote} onOpenArchive={() => setViewingArchive(true)} />
@@ -259,10 +188,8 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
 }
 
 /* ---------- Dashboard ---------- */
-function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summaryErr, apiKey, onSaveApiKey, onOpenNote }) {
+function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
-  const [showKey, setShowKey] = useState(false);
-  const [keyDraft, setKeyDraft] = useState(apiKey);
 
   const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n));
   const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0);
@@ -273,7 +200,7 @@ function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summ
 
   const filteredNotes = activeFilter ? realNotes.filter(n => n.category === activeFilter) : realNotes;
 
-  function buildLocalSummary() {
+  function buildSummary() {
     if (realNotes.length === 0) return 'No notes yet — tap + to start one.';
     const parts = [
       `${realNotes.length} note${realNotes.length !== 1 ? 's' : ''}, ${totalTasks} active task${totalTasks !== 1 ? 's' : ''}.`
@@ -292,8 +219,6 @@ function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summ
     }
     return parts.join('\n');
   }
-
-  function handleKeySave() { onSaveApiKey(keyDraft); setShowKey(false); }
 
   return (
     <div>
@@ -330,30 +255,9 @@ function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summ
       )}
 
       <div className="panel">
-        <div className="panel-title">
-          <h2>ai summary</h2>
-          <button className="icon-btn-plain" title="Set API key for AI summaries" onClick={() => setShowKey(v => !v)}>{Icon.key}</button>
-        </div>
-        {showKey && (
-          <div>
-            <div className="api-key-row">
-              <input type="password" placeholder="sk-ant-..." value={keyDraft}
-                onChange={e => setKeyDraft(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleKeySave()} />
-              <button className="primary" onClick={handleKeySave}>Save</button>
-            </div>
-            <div className="api-key-hint">Optional — enables AI summaries via Anthropic. Key stored in this browser only.</div>
-          </div>
-        )}
-        <div className={'summary-box' + (realNotes.length === 0 ? ' placeholder' : '')} style={showKey ? { marginTop: 10 } : {}}>
-          {apiKey
-            ? summaryLoading
-              ? <span>updating<span className="cursor-blink"></span></span>
-              : summaryErr
-                ? <span style={{ color: 'var(--danger)' }}>{summaryErr}</span>
-                : (summary || 'Nothing to summarize yet.')
-            : buildLocalSummary()
-          }
+        <div className="panel-title"><h2>summary</h2></div>
+        <div className={'summary-box' + (realNotes.length === 0 ? ' placeholder' : '')}>
+          {buildSummary()}
         </div>
       </div>
 

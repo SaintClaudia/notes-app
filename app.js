@@ -1,6 +1,5 @@
 const { useState, useEffect, useRef, useCallback, useLayoutEffect } = React;
 const DEFAULT_CATEGORIES = ["Work", "Tasks", "Ideas", "Lists"];
-const API_KEY_STORAGE = "notesapp_apikey";
 const storageAdapter = {
   async get(key) {
     try {
@@ -70,11 +69,6 @@ function App() {
   const [editingId, setEditingId] = useState(null);
   const [viewingArchive, setViewingArchive] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
-  const [summary, setSummary] = useState("");
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [summaryErr, setSummaryErr] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const summaryTimer = useRef(null);
   useEffect(() => {
     (async () => {
       let loadedNotes = [];
@@ -89,8 +83,6 @@ function App() {
       } catch (e) {
         setCategories(DEFAULT_CATEGORIES);
       }
-      const savedKey = localStorage.getItem(API_KEY_STORAGE) || "";
-      setApiKey(savedKey);
       const n = newNote();
       const next = [n, ...loadedNotes];
       setNotes(next);
@@ -117,68 +109,6 @@ function App() {
     } catch (e) {
     }
   }, []);
-  function saveApiKey(key) {
-    const trimmed = key.trim();
-    setApiKey(trimmed);
-    localStorage.setItem(API_KEY_STORAGE, trimmed);
-  }
-  const generateSummary = useCallback(async (currentNotes, key) => {
-    if (!key) {
-      setSummary("");
-      setSummaryErr("");
-      return;
-    }
-    setSummaryLoading(true);
-    setSummaryErr("");
-    try {
-      const body = currentNotes.filter((n) => !n.archived && !isNoteEmpty(n)).map((n) => {
-        const lines = n.blocks.filter((b) => b.text && b.text.trim()).map((b) => (b.type === "check" ? "[ ] " : "") + b.text.trim());
-        return `Note "${n.title || "Untitled"}"${n.category ? " (category: " + n.category + ")" : ""}:
-${lines.join("\n")}`;
-      }).join("\n\n");
-      const prompt = `You are summarizing a personal notes app for the user's dashboard. Notes can mix plain text with checklist items (marked "[ ] "). Checklist items shown here are still active/pending \u2014 anything checked off has already been removed from the data. Notes may have a category.
-
-NOTES:
-${body || "(no notes yet)"}
-
-Write a short, plain, useful summary (4-8 lines max) of what's still active/pending, grouped by category where it makes sense. No markdown headers, no fluff. If there's nothing, say so briefly.`;
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": key,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 300,
-          messages: [{ role: "user", content: prompt }]
-        })
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setSummaryErr(data.error?.message || "API error \u2014 check your key.");
-        return;
-      }
-      const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
-      setSummary(text || "No summary returned.");
-    } catch (e) {
-      setSummaryErr("Could not reach the API \u2014 check your connection.");
-    } finally {
-      setSummaryLoading(false);
-    }
-  }, []);
-  useEffect(() => {
-    if (notes === null) return;
-    if (summaryTimer.current) clearTimeout(summaryTimer.current);
-    summaryTimer.current = setTimeout(() => {
-      generateSummary(notes, apiKey);
-    }, 1200);
-    return () => {
-      if (summaryTimer.current) clearTimeout(summaryTimer.current);
-    };
-  }, [notes, apiKey, generateSummary]);
   if (notes === null) {
     return /* @__PURE__ */ React.createElement("div", { style: { padding: "40px", color: "var(--muted)" } }, "loading", /* @__PURE__ */ React.createElement("span", { className: "cursor-blink" }));
   }
@@ -241,24 +171,17 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
       notes,
       categories,
       storageOk,
-      summary,
-      summaryLoading,
-      summaryErr,
-      apiKey,
-      onSaveApiKey: saveApiKey,
       onOpenNote: openNote
     }
   ) : /* @__PURE__ */ React.createElement(NotesList, { notes, onOpenNote: openNote, onOpenArchive: () => setViewingArchive(true) })), !viewingArchive && /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "dashboard" ? " active" : ""), onClick: () => navigate("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus)), /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "notes" ? " active" : ""), onClick: () => navigate("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes"))));
 }
-function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summaryErr, apiKey, onSaveApiKey, onOpenNote }) {
+function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
-  const [showKey, setShowKey] = useState(false);
-  const [keyDraft, setKeyDraft] = useState(apiKey);
   const realNotes = notes.filter((n) => !n.archived && !isNoteEmpty(n));
   const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0);
   const catCounts = categories.map((cat) => ({ cat, count: realNotes.filter((n) => n.category === cat).length })).filter((b) => b.count > 0);
   const filteredNotes = activeFilter ? realNotes.filter((n) => n.category === activeFilter) : realNotes;
-  function buildLocalSummary() {
+  function buildSummary() {
     if (realNotes.length === 0) return "No notes yet \u2014 tap + to start one.";
     const parts = [
       `${realNotes.length} note${realNotes.length !== 1 ? "s" : ""}, ${totalTasks} active task${totalTasks !== 1 ? "s" : ""}.`
@@ -274,10 +197,6 @@ function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summ
     }
     return parts.join("\n");
   }
-  function handleKeySave() {
-    onSaveApiKey(keyDraft);
-    setShowKey(false);
-  }
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "stat-row" }, /* @__PURE__ */ React.createElement("div", { className: "stat" }, /* @__PURE__ */ React.createElement("div", { className: "num" }, totalTasks), /* @__PURE__ */ React.createElement("div", { className: "label" }, "active tasks")), /* @__PURE__ */ React.createElement("div", { className: "stat" }, /* @__PURE__ */ React.createElement("div", { className: "num" }, realNotes.length), /* @__PURE__ */ React.createElement("div", { className: "label" }, "notes"))), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
     "div",
     {
@@ -288,16 +207,7 @@ function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summ
     },
     /* @__PURE__ */ React.createElement("div", { className: "num" }, b.count),
     /* @__PURE__ */ React.createElement("div", { className: "label" }, b.cat)
-  ))), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, "ai summary"), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", title: "Set API key for AI summaries", onClick: () => setShowKey((v) => !v) }, Icon.key)), showKey && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "api-key-row" }, /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      type: "password",
-      placeholder: "sk-ant-...",
-      value: keyDraft,
-      onChange: (e) => setKeyDraft(e.target.value),
-      onKeyDown: (e) => e.key === "Enter" && handleKeySave()
-    }
-  ), /* @__PURE__ */ React.createElement("button", { className: "primary", onClick: handleKeySave }, "Save")), /* @__PURE__ */ React.createElement("div", { className: "api-key-hint" }, "Optional \u2014 enables AI summaries via Anthropic. Key stored in this browser only.")), /* @__PURE__ */ React.createElement("div", { className: "summary-box" + (realNotes.length === 0 ? " placeholder" : ""), style: showKey ? { marginTop: 10 } : {} }, apiKey ? summaryLoading ? /* @__PURE__ */ React.createElement("span", null, "updating", /* @__PURE__ */ React.createElement("span", { className: "cursor-blink" })) : summaryErr ? /* @__PURE__ */ React.createElement("span", { style: { color: "var(--danger)" } }, summaryErr) : summary || "Nothing to summarize yet." : buildLocalSummary())), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, activeFilter || "recent"), activeFilter && /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setActiveFilter(null), title: "clear filter" }, "\u2715")), filteredNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, activeFilter ? `No notes tagged "${activeFilter}".` : "No notes yet \u2014 tap + to start one."), [...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id), style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))))));
+  ))), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, "summary")), /* @__PURE__ */ React.createElement("div", { className: "summary-box" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, activeFilter || "recent"), activeFilter && /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setActiveFilter(null), title: "clear filter" }, "\u2715")), filteredNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, activeFilter ? `No notes tagged "${activeFilter}".` : "No notes yet \u2014 tap + to start one."), [...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id), style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))))));
 }
 function NotesList({ notes, onOpenNote, onOpenArchive }) {
   const [q, setQ] = useState("");
