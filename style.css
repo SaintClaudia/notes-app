@@ -183,15 +183,17 @@ input[type=password]::placeholder { color: #5a5a5a; }
 }
 .block-text::placeholder { color: #5a5a5a; }
 .compose-bar {
-  position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 6px;
-  display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  position: fixed; bottom: 80px; right: 16px;
+  display: flex; gap: 10px; align-items: center;
+  z-index: 20;
 }
 .mic-btn, .send-btn {
-  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--border); background: var(--panel-alt); color: #fff; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
 }
-.mic-btn svg, .send-btn svg { width: 16px; height: 16px; }
+.mic-btn svg, .send-btn svg { width: 18px; height: 18px; }
 .mic-btn:hover, .send-btn:hover { border-color: var(--muted); }
 .mic-btn:disabled { opacity: .35; cursor: default; }
 .mic-btn:disabled:hover { border-color: var(--border); }
