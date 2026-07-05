@@ -33,11 +33,11 @@ function isNoteEmpty(n) {
   return !n.blocks.some((b) => b.text && b.text.trim());
 }
 function noteSnippet(n) {
-  const parts = n.blocks.filter((b) => b.text && b.text.trim()).map((b) => (b.type === "check" ? "\u25CB " : "") + b.text.trim());
+  const parts = n.blocks.filter((b) => !b.done && b.text && b.text.trim()).map((b) => (b.type === "check" ? "\u25CB " : "") + b.text.trim());
   return parts.join("  \xB7  ") || "Empty note";
 }
 function noteActiveCount(n) {
-  return n.blocks.filter((b) => b.type === "check" && b.text && b.text.trim()).length;
+  return n.blocks.filter((b) => b.type === "check" && !b.done && b.text && b.text.trim()).length;
 }
 function noteMatchesSearch(n, q) {
   if (!q) return true;
@@ -329,6 +329,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const refs = useRef({});
   const recognitionRef = useRef(null);
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -376,13 +377,16 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   function completeBlock(id) {
     setLeaving((prev) => ({ ...prev, [id]: true }));
     setTimeout(() => {
-      setBlocks((prev) => prev.filter((b) => b.id !== id));
+      setBlocks((prev) => prev.map((b) => b.id === id ? { ...b, done: true } : b));
       setLeaving((prev) => {
         const p = { ...prev };
         delete p[id];
         return p;
       });
     }, 220);
+  }
+  function uncompleteBlock(id) {
+    setBlocks((prev) => prev.map((b) => b.id === id ? { ...b, done: false } : b));
   }
   function handleBlockKeyDown(e, block, index) {
     if (e.key === "Enter") {
@@ -450,6 +454,8 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
     recog.start();
     setIsListening(true);
   }
+  const activeBlocks = blocks.filter((b) => !b.done);
+  const completedBlocks = blocks.filter((b) => b.done);
   return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onBack }, Icon.back), note.archived ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onRestore, title: "restore" }, Icon.restore), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onDeleteForever, title: "delete forever" }, Icon.trash)) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onArchive, title: "archive" }, Icon.archive)), /* @__PURE__ */ React.createElement(
     "input",
     {
@@ -461,26 +467,29 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
     }
   ), note.archived && /* @__PURE__ */ React.createElement("div", { className: "archive-banner" }, "This note is archived. Restore it to keep editing, or delete it for good."), /* @__PURE__ */ React.createElement(CategoryPicker, { categories, value: category, onSelect: setCategory, onAddCategory }), /* @__PURE__ */ React.createElement("div", { className: "editor-body", onClick: (e) => {
     if (e.target === e.currentTarget) addBlock();
-  } }, blocks.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { cursor: "text" }, onClick: addBlock }, "Tap to start writing..."), blocks.map((block, i) => /* @__PURE__ */ React.createElement("div", { className: "block-row" + (leaving[block.id] ? " leaving" : ""), key: block.id }, block.type === "check" && /* @__PURE__ */ React.createElement("div", { className: "block-check" + (leaving[block.id] ? " checked" : ""), onClick: () => completeBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement(
-    "textarea",
-    {
-      ref: (el) => {
-        if (el) {
-          refs.current[block.id] = el;
-        } else {
-          delete refs.current[block.id];
-        }
-      },
-      className: "block-text",
-      rows: 1,
-      value: block.text,
-      onChange: (e) => {
-        setBlockText(block.id, e.target.value);
-        autoGrow(e.target);
-      },
-      onKeyDown: (e) => handleBlockKeyDown(e, block, i)
-    }
-  )))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar" }, /* @__PURE__ */ React.createElement(
+  } }, activeBlocks.length === 0 && completedBlocks.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { cursor: "text" }, onClick: addBlock }, "Tap to start writing..."), activeBlocks.map((block) => {
+    const i = blocks.findIndex((b) => b.id === block.id);
+    return /* @__PURE__ */ React.createElement("div", { className: "block-row" + (leaving[block.id] ? " leaving" : ""), key: block.id }, block.type === "check" && /* @__PURE__ */ React.createElement("div", { className: "block-check" + (leaving[block.id] ? " checked" : ""), onClick: () => completeBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        ref: (el) => {
+          if (el) {
+            refs.current[block.id] = el;
+          } else {
+            delete refs.current[block.id];
+          }
+        },
+        className: "block-text",
+        rows: 1,
+        value: block.text,
+        onChange: (e) => {
+          setBlockText(block.id, e.target.value);
+          autoGrow(e.target);
+        },
+        onKeyDown: (e) => handleBlockKeyDown(e, block, i)
+      }
+    ));
+  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done" }, block.text))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "mic-btn" + (isListening ? " listening" : ""),

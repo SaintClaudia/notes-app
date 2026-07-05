@@ -28,12 +28,12 @@ function isNoteEmpty(n) {
 }
 
 function noteSnippet(n) {
-  const parts = n.blocks.filter(b => b.text && b.text.trim()).map(b => (b.type === 'check' ? '○ ' : '') + b.text.trim());
+  const parts = n.blocks.filter(b => !b.done && b.text && b.text.trim()).map(b => (b.type === 'check' ? '○ ' : '') + b.text.trim());
   return parts.join('  ·  ') || 'Empty note';
 }
 
 function noteActiveCount(n) {
-  return n.blocks.filter(b => b.type === 'check' && b.text && b.text.trim()).length;
+  return n.blocks.filter(b => b.type === 'check' && !b.done && b.text && b.text.trim()).length;
 }
 
 function noteMatchesSearch(n, q) {
@@ -444,6 +444,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const refs = useRef({});
   const recognitionRef = useRef(null);
 
@@ -484,9 +485,13 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   function completeBlock(id) {
     setLeaving(prev => ({ ...prev, [id]: true }));
     setTimeout(() => {
-      setBlocks(prev => prev.filter(b => b.id !== id));
+      setBlocks(prev => prev.map(b => b.id === id ? { ...b, done: true } : b));
       setLeaving(prev => { const p = { ...prev }; delete p[id]; return p; });
     }, 220);
+  }
+
+  function uncompleteBlock(id) {
+    setBlocks(prev => prev.map(b => b.id === id ? { ...b, done: false } : b));
   }
 
   function handleBlockKeyDown(e, block, index) {
@@ -555,6 +560,9 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
     setIsListening(true);
   }
 
+  const activeBlocks = blocks.filter(b => !b.done);
+  const completedBlocks = blocks.filter(b => b.done);
+
   return (
     <div className="editor-wrap">
       <div className="editor-topbar">
@@ -577,26 +585,44 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
       <CategoryPicker categories={categories} value={category} onSelect={setCategory} onAddCategory={onAddCategory} />
 
       <div className="editor-body" onClick={e => { if (e.target === e.currentTarget) addBlock(); }}>
-        {blocks.length === 0 && (
+        {activeBlocks.length === 0 && completedBlocks.length === 0 && (
           <div className="empty-msg" style={{ cursor: 'text' }} onClick={addBlock}>Tap to start writing...</div>
         )}
-        {blocks.map((block, i) => (
-          <div className={'block-row' + (leaving[block.id] ? ' leaving' : '')} key={block.id}>
-            {block.type === 'check' && (
-              <div className={'block-check' + (leaving[block.id] ? ' checked' : '')} onClick={() => completeBlock(block.id)}>
-                {Icon.check}
+        {activeBlocks.map(block => {
+          const i = blocks.findIndex(b => b.id === block.id);
+          return (
+            <div className={'block-row' + (leaving[block.id] ? ' leaving' : '')} key={block.id}>
+              {block.type === 'check' && (
+                <div className={'block-check' + (leaving[block.id] ? ' checked' : '')} onClick={() => completeBlock(block.id)}>
+                  {Icon.check}
+                </div>
+              )}
+              <textarea
+                ref={el => { if (el) { refs.current[block.id] = el; } else { delete refs.current[block.id]; } }}
+                className="block-text"
+                rows={1}
+                value={block.text}
+                onChange={e => { setBlockText(block.id, e.target.value); autoGrow(e.target); }}
+                onKeyDown={e => handleBlockKeyDown(e, block, i)}
+              />
+            </div>
+          );
+        })}
+        {completedBlocks.length > 0 && (
+          <div className="completed-section">
+            <div className="completed-header" onClick={() => setShowCompleted(v => !v)}>
+              {showCompleted ? '▾' : '▸'} Completed ({completedBlocks.length})
+            </div>
+            {showCompleted && completedBlocks.map(block => (
+              <div className="block-row" key={block.id}>
+                <div className="block-check checked" onClick={() => uncompleteBlock(block.id)}>
+                  {Icon.check}
+                </div>
+                <div className="block-text block-text-done">{block.text}</div>
               </div>
-            )}
-            <textarea
-              ref={el => { if (el) { refs.current[block.id] = el; } else { delete refs.current[block.id]; } }}
-              className="block-text"
-              rows={1}
-              value={block.text}
-              onChange={e => { setBlockText(block.id, e.target.value); autoGrow(e.target); }}
-              onKeyDown={e => handleBlockKeyDown(e, block, i)}
-            />
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       <div className="compose-bar">
