@@ -149,6 +149,11 @@ function App() {
     setTab(newTab);
   }
 
+  function saveAndViewNotes() {
+    closeEditor();
+    setTab('notes');
+  }
+
   return (
     <div className="shell">
       <div className="screen">
@@ -157,6 +162,7 @@ function App() {
             onChange={patch => updateNote(editingNote.id, patch)}
             onAddCategory={addCategory}
             onBack={closeEditor}
+            onSave={saveAndViewNotes}
             onArchive={() => archiveNote(editingNote.id)}
             onRestore={() => restoreNote(editingNote.id)}
             onDeleteForever={() => deleteForever(editingNote.id)} />
@@ -377,7 +383,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
 }
 
 /* ---------- Editor ---------- */
-function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, onRestore, onDeleteForever }) {
+function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onArchive, onRestore, onDeleteForever }) {
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || '');
@@ -588,7 +594,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
             {Icon.mic}
           </button>
         )}
-        <button className="send-btn" onClick={addBlock} title="new line">
+        <button className="send-btn" onClick={onSave} title="save & view notes">
           {Icon.send}
         </button>
       </div>
