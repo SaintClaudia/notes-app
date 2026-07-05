@@ -443,19 +443,15 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   const [category, setCategory] = useState(note.category || '');
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
-  const [composeText, setComposeText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const refs = useRef({});
-  const composeRef = useRef(null);
   const recognitionRef = useRef(null);
 
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   const micSupported = !!SpeechRecognitionCtor;
 
   useEffect(() => { onChange({ title, blocks, category }); }, [title, blocks, category]);
-
   useLayoutEffect(() => { Object.values(refs.current).forEach(autoGrow); }, [blocks]);
-  useLayoutEffect(() => { autoGrow(composeRef.current); }, [composeText]);
 
   useEffect(() => {
     if (focusTarget && refs.current[focusTarget.id]) {
@@ -470,6 +466,12 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   useEffect(() => {
     return () => { if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch (e) {} } };
   }, []);
+
+  function addBlock() {
+    const b = newBlock('text', '');
+    setBlocks(prev => [...prev, b]);
+    setFocusTarget({ id: b.id, pos: 0 });
+  }
 
   function setBlockText(id, text) {
     setBlocks(prev => prev.map(b => {
@@ -504,26 +506,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
     }
   }
 
-  function handleSend() {
-    const lines = composeText.split('\n');
-    const additions = [];
-    lines.forEach(line => {
-      if (line.trim() === '') return;
-      const trimmedStart = line.replace(/^\s+/, '');
-      if (trimmedStart.startsWith('- ')) {
-        additions.push(newBlock('check', trimmedStart.slice(2)));
-      } else {
-        additions.push(newBlock('text', line));
-      }
-    });
-    if (additions.length === 0) return;
-    setBlocks(prev => [...prev, ...additions]);
-    setComposeText('');
-    requestAnimationFrame(() => {
-      if (composeRef.current) { composeRef.current.style.height = 'auto'; composeRef.current.focus(); }
-    });
-  }
-
   function toggleMic() {
     if (!micSupported) return;
     if (isListening) { if (recognitionRef.current) recognitionRef.current.stop(); return; }
@@ -531,15 +513,22 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
     recog.continuous = true;
     recog.interimResults = false;
     recog.lang = navigator.language || 'en-US';
+    let accumulated = '';
     recog.onresult = (e) => {
-      let finalText = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+        if (e.results[i].isFinal) accumulated += (accumulated ? ' ' : '') + e.results[i][0].transcript;
       }
-      if (finalText.trim()) setComposeText(prev => prev ? prev + ' ' + finalText.trim() : finalText.trim());
     };
     recog.onerror = () => setIsListening(false);
-    recog.onend = () => setIsListening(false);
+    recog.onend = () => {
+      setIsListening(false);
+      if (!accumulated.trim()) return;
+      const additions = accumulated.split('\n').filter(l => l.trim()).map(line => {
+        const t = line.replace(/^\s+/, '');
+        return t.startsWith('- ') ? newBlock('check', t.slice(2)) : newBlock('text', line);
+      });
+      if (additions.length) setBlocks(prev => [...prev, ...additions]);
+    };
     recognitionRef.current = recog;
     recog.start();
     setIsListening(true);
@@ -549,8 +538,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
     <div className="editor-wrap">
       <div className="editor-topbar">
         <button className="icon-btn-plain" onClick={onBack}>{Icon.back}</button>
-        <input type="text" className="editor-title-input" placeholder="Untitled"
-          value={title} onChange={e => setTitle(e.target.value)} />
         {note.archived ? (
           <>
             <button className="icon-btn-plain" onClick={onRestore} title="restore">{Icon.restore}</button>
@@ -561,52 +548,46 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
         )}
       </div>
 
+      <input type="text" className="editor-title" placeholder="Title"
+        value={title} onChange={e => setTitle(e.target.value)} />
+
       {note.archived && <div className="archive-banner">This note is archived. Restore it to keep editing, or delete it for good.</div>}
 
       <CategoryPicker categories={categories} value={category} onSelect={setCategory} onAddCategory={onAddCategory} />
 
-      {blocks.length === 0 && <div className="empty-msg">Nothing here yet — say or type something below.</div>}
-
-      {blocks.map((block, i) => (
-        <div className={'block-row' + (leaving[block.id] ? ' leaving' : '')} key={block.id}>
-          {block.type === 'check' ? (
-            <div className={'block-check' + (leaving[block.id] ? ' checked' : '')} onClick={() => completeBlock(block.id)}>
-              {Icon.check}
-            </div>
-          ) : (
-            <div style={{ width: 19, flexShrink: 0, marginTop: 3 }}></div>
-          )}
-          <textarea
-            ref={el => { if (el) { refs.current[block.id] = el; } else { delete refs.current[block.id]; } }}
-            className="block-text"
-            rows={1}
-            value={block.text}
-            onChange={e => { setBlockText(block.id, e.target.value); autoGrow(e.target); }}
-            onKeyDown={e => handleBlockKeyDown(e, block, i)}
-          />
-        </div>
-      ))}
-
-      <div className="editor-hint">tip: start a line with "- " for a tap-to-complete item</div>
+      <div className="editor-body" onClick={e => { if (e.target === e.currentTarget) addBlock(); }}>
+        {blocks.length === 0 && (
+          <div className="empty-msg" style={{ cursor: 'text' }} onClick={addBlock}>Tap to start writing...</div>
+        )}
+        {blocks.map((block, i) => (
+          <div className={'block-row' + (leaving[block.id] ? ' leaving' : '')} key={block.id}>
+            {block.type === 'check' ? (
+              <div className={'block-check' + (leaving[block.id] ? ' checked' : '')} onClick={() => completeBlock(block.id)}>
+                {Icon.check}
+              </div>
+            ) : (
+              <div style={{ width: 19, flexShrink: 0, marginTop: 3 }}></div>
+            )}
+            <textarea
+              ref={el => { if (el) { refs.current[block.id] = el; } else { delete refs.current[block.id]; } }}
+              className="block-text"
+              rows={1}
+              value={block.text}
+              onChange={e => { setBlockText(block.id, e.target.value); autoGrow(e.target); }}
+              onKeyDown={e => handleBlockKeyDown(e, block, i)}
+            />
+          </div>
+        ))}
+      </div>
 
       <div className="compose-bar">
-        <textarea
-          ref={composeRef}
-          className="compose-textarea"
-          rows={1}
-          placeholder='Type a note, or "- " for a checklist item...'
-          value={composeText}
-          onChange={e => { setComposeText(e.target.value); autoGrow(e.target); }}
-        />
-        <div className="compose-actions">
-          <button className={'mic-btn' + (isListening ? ' listening' : '')} onClick={toggleMic}
-            disabled={!micSupported} title={micSupported ? (isListening ? 'stop dictation' : 'dictate') : 'voice input not supported'}>
-            {Icon.mic}
-          </button>
-          <button className="send-btn" onClick={handleSend} disabled={composeText.trim() === ''} title="save">
-            {Icon.send}
-          </button>
-        </div>
+        <button className={'mic-btn' + (isListening ? ' listening' : '')} onClick={toggleMic}
+          disabled={!micSupported} title={micSupported ? (isListening ? 'stop dictation' : 'dictate') : 'voice input not supported'}>
+          {Icon.mic}
+        </button>
+        <button className="send-btn" onClick={addBlock} title="new line">
+          {Icon.send}
+        </button>
       </div>
     </div>
   );

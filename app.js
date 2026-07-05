@@ -328,10 +328,8 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   const [category, setCategory] = useState(note.category || "");
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
-  const [composeText, setComposeText] = useState("");
   const [isListening, setIsListening] = useState(false);
   const refs = useRef({});
-  const composeRef = useRef(null);
   const recognitionRef = useRef(null);
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   const micSupported = !!SpeechRecognitionCtor;
@@ -341,9 +339,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   useLayoutEffect(() => {
     Object.values(refs.current).forEach(autoGrow);
   }, [blocks]);
-  useLayoutEffect(() => {
-    autoGrow(composeRef.current);
-  }, [composeText]);
   useEffect(() => {
     if (focusTarget && refs.current[focusTarget.id]) {
       const el = refs.current[focusTarget.id];
@@ -366,6 +361,11 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
       }
     };
   }, []);
+  function addBlock() {
+    const b = newBlock("text", "");
+    setBlocks((prev) => [...prev, b]);
+    setFocusTarget({ id: b.id, pos: 0 });
+  }
   function setBlockText(id, text) {
     setBlocks((prev) => prev.map((b) => {
       if (b.id !== id) return b;
@@ -400,28 +400,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
       }
     }
   }
-  function handleSend() {
-    const lines = composeText.split("\n");
-    const additions = [];
-    lines.forEach((line) => {
-      if (line.trim() === "") return;
-      const trimmedStart = line.replace(/^\s+/, "");
-      if (trimmedStart.startsWith("- ")) {
-        additions.push(newBlock("check", trimmedStart.slice(2)));
-      } else {
-        additions.push(newBlock("text", line));
-      }
-    });
-    if (additions.length === 0) return;
-    setBlocks((prev) => [...prev, ...additions]);
-    setComposeText("");
-    requestAnimationFrame(() => {
-      if (composeRef.current) {
-        composeRef.current.style.height = "auto";
-        composeRef.current.focus();
-      }
-    });
-  }
   function toggleMic() {
     if (!micSupported) return;
     if (isListening) {
@@ -432,29 +410,38 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
     recog.continuous = true;
     recog.interimResults = false;
     recog.lang = navigator.language || "en-US";
+    let accumulated = "";
     recog.onresult = (e) => {
-      let finalText = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+        if (e.results[i].isFinal) accumulated += (accumulated ? " " : "") + e.results[i][0].transcript;
       }
-      if (finalText.trim()) setComposeText((prev) => prev ? prev + " " + finalText.trim() : finalText.trim());
     };
     recog.onerror = () => setIsListening(false);
-    recog.onend = () => setIsListening(false);
+    recog.onend = () => {
+      setIsListening(false);
+      if (!accumulated.trim()) return;
+      const additions = accumulated.split("\n").filter((l) => l.trim()).map((line) => {
+        const t = line.replace(/^\s+/, "");
+        return t.startsWith("- ") ? newBlock("check", t.slice(2)) : newBlock("text", line);
+      });
+      if (additions.length) setBlocks((prev) => [...prev, ...additions]);
+    };
     recognitionRef.current = recog;
     recog.start();
     setIsListening(true);
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onBack }, Icon.back), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onBack }, Icon.back), note.archived ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onRestore, title: "restore" }, Icon.restore), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onDeleteForever, title: "delete forever" }, Icon.trash)) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onArchive, title: "archive" }, Icon.archive)), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
-      className: "editor-title-input",
-      placeholder: "Untitled",
+      className: "editor-title",
+      placeholder: "Title",
       value: title,
       onChange: (e) => setTitle(e.target.value)
     }
-  ), note.archived ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onRestore, title: "restore" }, Icon.restore), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onDeleteForever, title: "delete forever" }, Icon.trash)) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onArchive, title: "archive" }, Icon.archive)), note.archived && /* @__PURE__ */ React.createElement("div", { className: "archive-banner" }, "This note is archived. Restore it to keep editing, or delete it for good."), /* @__PURE__ */ React.createElement(CategoryPicker, { categories, value: category, onSelect: setCategory, onAddCategory }), blocks.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, "Nothing here yet \u2014 say or type something below."), blocks.map((block, i) => /* @__PURE__ */ React.createElement("div", { className: "block-row" + (leaving[block.id] ? " leaving" : ""), key: block.id }, block.type === "check" ? /* @__PURE__ */ React.createElement("div", { className: "block-check" + (leaving[block.id] ? " checked" : ""), onClick: () => completeBlock(block.id) }, Icon.check) : /* @__PURE__ */ React.createElement("div", { style: { width: 19, flexShrink: 0, marginTop: 3 } }), /* @__PURE__ */ React.createElement(
+  ), note.archived && /* @__PURE__ */ React.createElement("div", { className: "archive-banner" }, "This note is archived. Restore it to keep editing, or delete it for good."), /* @__PURE__ */ React.createElement(CategoryPicker, { categories, value: category, onSelect: setCategory, onAddCategory }), /* @__PURE__ */ React.createElement("div", { className: "editor-body", onClick: (e) => {
+    if (e.target === e.currentTarget) addBlock();
+  } }, blocks.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { cursor: "text" }, onClick: addBlock }, "Tap to start writing..."), blocks.map((block, i) => /* @__PURE__ */ React.createElement("div", { className: "block-row" + (leaving[block.id] ? " leaving" : ""), key: block.id }, block.type === "check" ? /* @__PURE__ */ React.createElement("div", { className: "block-check" + (leaving[block.id] ? " checked" : ""), onClick: () => completeBlock(block.id) }, Icon.check) : /* @__PURE__ */ React.createElement("div", { style: { width: 19, flexShrink: 0, marginTop: 3 } }), /* @__PURE__ */ React.createElement(
     "textarea",
     {
       ref: (el) => {
@@ -473,20 +460,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
       },
       onKeyDown: (e) => handleBlockKeyDown(e, block, i)
     }
-  ))), /* @__PURE__ */ React.createElement("div", { className: "editor-hint" }, 'tip: start a line with "- " for a tap-to-complete item'), /* @__PURE__ */ React.createElement("div", { className: "compose-bar" }, /* @__PURE__ */ React.createElement(
-    "textarea",
-    {
-      ref: composeRef,
-      className: "compose-textarea",
-      rows: 1,
-      placeholder: 'Type a note, or "- " for a checklist item...',
-      value: composeText,
-      onChange: (e) => {
-        setComposeText(e.target.value);
-        autoGrow(e.target);
-      }
-    }
-  ), /* @__PURE__ */ React.createElement("div", { className: "compose-actions" }, /* @__PURE__ */ React.createElement(
+  )))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "mic-btn" + (isListening ? " listening" : ""),
@@ -495,6 +469,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
       title: micSupported ? isListening ? "stop dictation" : "dictate" : "voice input not supported"
     },
     Icon.mic
-  ), /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: handleSend, disabled: composeText.trim() === "", title: "save" }, Icon.send))));
+  ), /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: addBlock, title: "new line" }, Icon.send)));
 }
 ReactDOM.createRoot(document.getElementById("app-root")).render(/* @__PURE__ */ React.createElement(App, null));
