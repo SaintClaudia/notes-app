@@ -1,0 +1,602 @@
+const { useState, useEffect, useRef, useCallback, useLayoutEffect } = React;
+
+const DEFAULT_CATEGORIES = ['Work', 'Tasks', 'Ideas', 'Lists'];
+const API_KEY_STORAGE = 'notesapp_apikey';
+
+const storageAdapter = {
+  async get(key) {
+    try {
+      const v = localStorage.getItem('notesapp_' + key);
+      return v === null ? null : { key, value: v };
+    } catch (e) { return null; }
+  },
+  async set(key, value) {
+    try {
+      localStorage.setItem('notesapp_' + key, value);
+      return { key, value };
+    } catch (e) { return null; }
+  }
+};
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function newBlock(type = 'text', text = '') { return { id: uid(), type, text }; }
+function newNote() { return { id: uid(), title: '', category: '', archived: false, blocks: [], updatedAt: Date.now() }; }
+
+function isNoteEmpty(n) {
+  if (n.title && n.title.trim()) return false;
+  return !n.blocks.some(b => b.text && b.text.trim());
+}
+
+function noteSnippet(n) {
+  const parts = n.blocks.filter(b => b.text && b.text.trim()).map(b => (b.type === 'check' ? '○ ' : '') + b.text.trim());
+  return parts.join('  ·  ') || 'Empty note';
+}
+
+function noteActiveCount(n) {
+  return n.blocks.filter(b => b.type === 'check' && b.text && b.text.trim()).length;
+}
+
+function noteMatchesSearch(n, q) {
+  if (!q) return true;
+  const hay = (n.title + ' ' + n.category + ' ' + n.blocks.map(b => b.text).join(' ')).toLowerCase();
+  return hay.includes(q.toLowerCase());
+}
+
+/* ---------- icons ---------- */
+const Icon = {
+  grid: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>,
+  plus: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  list: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg>,
+  back: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+  check: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
+  trash: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  archive: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>,
+  restore: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>,
+  search: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  mic: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>,
+  send: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>,
+  key: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="8" cy="15" r="5"/><line x1="13" y1="10" x2="22" y2="10"/><line x1="19" y1="10" x2="19" y2="13"/></svg>,
+};
+
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+/* ---------- App ---------- */
+function App() {
+  const [tab, setTab] = useState('dashboard');
+  const [notes, setNotes] = useState(null);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [editingId, setEditingId] = useState(null);
+  const [viewingArchive, setViewingArchive] = useState(false);
+  const [storageOk, setStorageOk] = useState(true);
+  const [summary, setSummary] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryErr, setSummaryErr] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const summaryTimer = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await storageAdapter.get('notes_v2');
+        setNotes(r ? JSON.parse(r.value) : []);
+      } catch (e) { setNotes([]); }
+      try {
+        const c = await storageAdapter.get('categories_v1');
+        setCategories(c ? JSON.parse(c.value) : DEFAULT_CATEGORIES);
+      } catch (e) { setCategories(DEFAULT_CATEGORIES); }
+      const savedKey = localStorage.getItem(API_KEY_STORAGE) || '';
+      setApiKey(savedKey);
+    })();
+  }, []);
+
+  const persist = useCallback(async (next) => {
+    setNotes(next);
+    try {
+      const r = await storageAdapter.set('notes_v2', JSON.stringify(next));
+      if (!r) setStorageOk(false);
+    } catch (e) { setStorageOk(false); }
+  }, []);
+
+  const persistCategories = useCallback(async (next) => {
+    setCategories(next);
+    try { await storageAdapter.set('categories_v1', JSON.stringify(next)); } catch (e) {}
+  }, []);
+
+  function saveApiKey(key) {
+    const trimmed = key.trim();
+    setApiKey(trimmed);
+    localStorage.setItem(API_KEY_STORAGE, trimmed);
+  }
+
+  const generateSummary = useCallback(async (currentNotes, key) => {
+    if (!key) {
+      setSummary('');
+      setSummaryErr('');
+      return;
+    }
+    setSummaryLoading(true);
+    setSummaryErr('');
+    try {
+      const body = currentNotes.filter(n => !n.archived && !isNoteEmpty(n)).map(n => {
+        const lines = n.blocks.filter(b => b.text && b.text.trim()).map(b => (b.type === 'check' ? '[ ] ' : '') + b.text.trim());
+        return `Note "${n.title || 'Untitled'}"${n.category ? ' (category: ' + n.category + ')' : ''}:\n${lines.join('\n')}`;
+      }).join('\n\n');
+
+      const prompt = `You are summarizing a personal notes app for the user's dashboard. Notes can mix plain text with checklist items (marked "[ ] "). Checklist items shown here are still active/pending — anything checked off has already been removed from the data. Notes may have a category.
+
+NOTES:
+${body || '(no notes yet)'}
+
+Write a short, plain, useful summary (4-8 lines max) of what's still active/pending, grouped by category where it makes sense. No markdown headers, no fluff. If there's nothing, say so briefly.`;
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 300,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setSummaryErr(data.error?.message || 'API error — check your key.');
+        return;
+      }
+      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+      setSummary(text || 'No summary returned.');
+    } catch (e) {
+      setSummaryErr('Could not reach the API — check your connection.');
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (notes === null) return;
+    if (summaryTimer.current) clearTimeout(summaryTimer.current);
+    summaryTimer.current = setTimeout(() => { generateSummary(notes, apiKey); }, 1200);
+    return () => { if (summaryTimer.current) clearTimeout(summaryTimer.current); };
+  }, [notes, apiKey, generateSummary]);
+
+  if (notes === null) {
+    return <div style={{ padding: '40px', color: 'var(--muted)' }}>loading<span className="cursor-blink"></span></div>;
+  }
+
+  function openNewNote() {
+    const n = newNote();
+    persist([n, ...notes]);
+    setEditingId(n.id);
+  }
+
+  function openNote(id) { setEditingId(id); }
+
+  function closeEditor() {
+    const current = notes.find(n => n.id === editingId);
+    if (current && isNoteEmpty(current)) {
+      persist(notes.filter(n => n.id !== editingId));
+    }
+    setEditingId(null);
+  }
+
+  function updateNote(id, patch) {
+    persist(notes.map(n => n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n));
+  }
+
+  function archiveNote(id) { updateNote(id, { archived: true }); setEditingId(null); }
+  function restoreNote(id) { updateNote(id, { archived: false }); setEditingId(null); }
+  function deleteForever(id) { persist(notes.filter(n => n.id !== id)); setEditingId(null); }
+
+  function addCategory(name) {
+    const clean = name.trim();
+    if (!clean || categories.includes(clean)) return clean;
+    persistCategories([...categories, clean]);
+    return clean;
+  }
+
+  const editingNote = editingId ? notes.find(n => n.id === editingId) : null;
+
+  return (
+    <div className="shell">
+      <div className="screen">
+        {editingNote ? (
+          <Editor note={editingNote} categories={categories}
+            onChange={patch => updateNote(editingNote.id, patch)}
+            onAddCategory={addCategory}
+            onBack={closeEditor}
+            onArchive={() => archiveNote(editingNote.id)}
+            onRestore={() => restoreNote(editingNote.id)}
+            onDeleteForever={() => deleteForever(editingNote.id)} />
+        ) : viewingArchive ? (
+          <ArchiveList notes={notes} onOpenNote={openNote} onBack={() => setViewingArchive(false)} />
+        ) : tab === 'dashboard' ? (
+          <Dashboard notes={notes} categories={categories} storageOk={storageOk}
+            summary={summary} summaryLoading={summaryLoading} summaryErr={summaryErr}
+            apiKey={apiKey} onSaveApiKey={saveApiKey}
+            onOpenNote={openNote} />
+        ) : (
+          <NotesList notes={notes} onOpenNote={openNote} onOpenArchive={() => setViewingArchive(true)} />
+        )}
+      </div>
+
+      {!editingNote && !viewingArchive && (
+        <div className="bottom-nav">
+          <div className={'nav-item' + (tab === 'dashboard' ? ' active' : '')} onClick={() => setTab('dashboard')}>
+            {Icon.grid}<span className="nav-label">dashboard</span>
+          </div>
+          <div className="nav-item" onClick={openNewNote}>
+            <button className="nav-create-btn">{Icon.plus}</button>
+          </div>
+          <div className={'nav-item' + (tab === 'notes' ? ' active' : '')} onClick={() => setTab('notes')}>
+            {Icon.list}<span className="nav-label">notes</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Dashboard ---------- */
+function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summaryErr, apiKey, onSaveApiKey, onOpenNote }) {
+  const [keyDraft, setKeyDraft] = useState(apiKey);
+  const [showKey, setShowKey] = useState(false);
+
+  const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n));
+  const breakdown = categories.map(cat => ({
+    cat, count: realNotes.filter(n => n.category === cat).reduce((a, n) => a + noteActiveCount(n), 0)
+  })).filter(b => b.count > 0);
+
+  function handleKeySave() {
+    onSaveApiKey(keyDraft);
+    setShowKey(false);
+  }
+
+  return (
+    <div>
+      <div className="topbar">
+        <div className="brand"><span className="dot"></span>notes</div>
+      </div>
+      {!storageOk && <div className="empty-msg" style={{ color: 'var(--danger)' }}>storage error — changes may not save</div>}
+
+      {breakdown.length > 0 ? (
+        <div className="cat-breakdown">
+          {breakdown.map(b => (
+            <div className="cat-chip" key={b.cat}><b>{b.count}</b> {b.cat}</div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-msg">No tagged active tasks yet.</div>
+      )}
+
+      <div className="panel">
+        <div className="panel-title">
+          <h2>ai summary</h2>
+          <button className="icon-btn-plain" title="Set API key" onClick={() => setShowKey(v => !v)}>{Icon.key}</button>
+        </div>
+
+        {showKey && (
+          <div>
+            <div className="api-key-row">
+              <input
+                type="password"
+                placeholder="sk-ant-..."
+                value={keyDraft}
+                onChange={e => setKeyDraft(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleKeySave()}
+              />
+              <button className="primary" onClick={handleKeySave}>Save</button>
+            </div>
+            <div className="api-key-hint">
+              Your key is stored only in this browser. Get one at{' '}
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.
+            </div>
+          </div>
+        )}
+
+        {summaryErr ? (
+          <div className="summary-box" style={{ color: 'var(--danger)', marginTop: showKey ? 10 : 0 }}>{summaryErr}</div>
+        ) : !apiKey ? (
+          <div className="summary-box placeholder">Tap the key icon above to add your Anthropic API key and enable AI summaries.</div>
+        ) : (
+          <div className={'summary-box' + (!summary && !summaryLoading ? ' placeholder' : '')} style={{ marginTop: showKey ? 10 : 0 }}>
+            {summaryLoading
+              ? <span>updating summary<span className="cursor-blink"></span></span>
+              : (summary || 'Nothing to summarize yet — add a note to get started.')}
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <div className="panel-title"><h2>recent</h2></div>
+        {realNotes.length === 0 && <div className="empty-msg">No notes yet — tap + to start one.</div>}
+        {realNotes.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map(n => (
+          <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)} style={{ marginBottom: 8 }}>
+            <div className="title">{n.title || 'Untitled'}</div>
+            <div className="snippet">{noteSnippet(n)}</div>
+            <div className="meta-row">
+              <span className="meta">{n.category && <span className="cat-tag">{n.category}</span>}</span>
+              {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Notes list ---------- */
+function NotesList({ notes, onOpenNote, onOpenArchive }) {
+  const [q, setQ] = useState('');
+  const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n) && noteMatchesSearch(n, q)).sort((a, b) => b.updatedAt - a.updatedAt);
+  return (
+    <div>
+      <div className="topbar">
+        <div className="brand"><span className="dot"></span>notes</div>
+        <div className="topbar-actions">
+          <button className="icon-btn-plain" onClick={onOpenArchive} title="archive">{Icon.archive}</button>
+        </div>
+      </div>
+      <div className="search-box">
+        {Icon.search}
+        <input type="text" placeholder="Search notes..." value={q} onChange={e => setQ(e.target.value)} />
+      </div>
+      {realNotes.length === 0 && <div className="empty-msg">{q ? 'No matches.' : 'No notes yet.'}</div>}
+      {realNotes.map(n => (
+        <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)}>
+          <div className="title">{n.title || 'Untitled'}</div>
+          <div className="snippet">{noteSnippet(n)}</div>
+          <div className="meta-row">
+            <span className="meta">
+              {new Date(n.updatedAt).toLocaleDateString()}
+              {n.category && <span className="cat-tag">{n.category}</span>}
+            </span>
+            {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Archive list ---------- */
+function ArchiveList({ notes, onOpenNote, onBack }) {
+  const archived = notes.filter(n => n.archived).sort((a, b) => b.updatedAt - a.updatedAt);
+  return (
+    <div>
+      <div className="topbar">
+        <button className="icon-btn-plain" onClick={onBack}>{Icon.back}</button>
+        <div className="brand">archive</div>
+      </div>
+      {archived.length === 0 && <div className="empty-msg">Archive is empty.</div>}
+      {archived.map(n => (
+        <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)}>
+          <div className="title">{n.title || 'Untitled'}</div>
+          <div className="snippet">{noteSnippet(n)}</div>
+          <div className="meta-row">
+            <span className="meta">{new Date(n.updatedAt).toLocaleDateString()}{n.category && <span className="cat-tag">{n.category}</span>}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Category picker ---------- */
+function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => { if (adding && inputRef.current) inputRef.current.focus(); }, [adding]);
+
+  function submit() {
+    const name = onAddCategory(draft);
+    if (name) onSelect(value === name ? '' : name);
+    setDraft('');
+    setAdding(false);
+  }
+
+  return (
+    <div className="cat-row">
+      {categories.map(c => (
+        <div key={c} className={'cat-pick' + (value === c ? ' selected' : '')}
+          onClick={() => onSelect(value === c ? '' : c)}>{c}</div>
+      ))}
+      {adding ? (
+        <input ref={inputRef} className="cat-new-input" placeholder="Category name" value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setAdding(false); setDraft(''); } }}
+          onBlur={submit} />
+      ) : (
+        <div className="cat-pick add" onClick={() => setAdding(true)}>+ new</div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Editor ---------- */
+function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, onRestore, onDeleteForever }) {
+  const [blocks, setBlocks] = useState(note.blocks);
+  const [title, setTitle] = useState(note.title);
+  const [category, setCategory] = useState(note.category || '');
+  const [leaving, setLeaving] = useState({});
+  const [focusTarget, setFocusTarget] = useState(null);
+  const [composeText, setComposeText] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const refs = useRef({});
+  const composeRef = useRef(null);
+  const recognitionRef = useRef(null);
+
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micSupported = !!SpeechRecognitionCtor;
+
+  useEffect(() => { onChange({ title, blocks, category }); }, [title, blocks, category]);
+
+  useLayoutEffect(() => { Object.values(refs.current).forEach(autoGrow); }, [blocks]);
+  useLayoutEffect(() => { autoGrow(composeRef.current); }, [composeText]);
+
+  useEffect(() => {
+    if (focusTarget && refs.current[focusTarget.id]) {
+      const el = refs.current[focusTarget.id];
+      el.focus();
+      const pos = focusTarget.pos ?? el.value.length;
+      try { el.setSelectionRange(pos, pos); } catch (e) {}
+      setFocusTarget(null);
+    }
+  }, [focusTarget, blocks]);
+
+  useEffect(() => {
+    return () => { if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch (e) {} } };
+  }, []);
+
+  function setBlockText(id, text) {
+    setBlocks(prev => prev.map(b => {
+      if (b.id !== id) return b;
+      if (b.type === 'text' && text.startsWith('- ')) return { ...b, type: 'check', text: text.slice(2) };
+      return { ...b, text };
+    }));
+  }
+
+  function completeBlock(id) {
+    setLeaving(prev => ({ ...prev, [id]: true }));
+    setTimeout(() => {
+      setBlocks(prev => prev.filter(b => b.id !== id));
+      setLeaving(prev => { const p = { ...prev }; delete p[id]; return p; });
+    }, 220);
+  }
+
+  function handleBlockKeyDown(e, block, index) {
+    if (e.key === 'Backspace') {
+      const el = e.target;
+      if (el.selectionStart === 0 && el.selectionEnd === 0 && block.text === '') {
+        if (index === 0) return;
+        e.preventDefault();
+        setBlocks(prev => {
+          const prevBlock = prev[index - 1];
+          const next = [...prev];
+          next.splice(index, 1);
+          setFocusTarget({ id: prevBlock.id, pos: prevBlock.text.length });
+          return next;
+        });
+      }
+    }
+  }
+
+  function handleSend() {
+    const lines = composeText.split('\n');
+    const additions = [];
+    lines.forEach(line => {
+      if (line.trim() === '') return;
+      const trimmedStart = line.replace(/^\s+/, '');
+      if (trimmedStart.startsWith('- ')) {
+        additions.push(newBlock('check', trimmedStart.slice(2)));
+      } else {
+        additions.push(newBlock('text', line));
+      }
+    });
+    if (additions.length === 0) return;
+    setBlocks(prev => [...prev, ...additions]);
+    setComposeText('');
+    requestAnimationFrame(() => {
+      if (composeRef.current) { composeRef.current.style.height = 'auto'; composeRef.current.focus(); }
+    });
+  }
+
+  function toggleMic() {
+    if (!micSupported) return;
+    if (isListening) { if (recognitionRef.current) recognitionRef.current.stop(); return; }
+    const recog = new SpeechRecognitionCtor();
+    recog.continuous = true;
+    recog.interimResults = false;
+    recog.lang = navigator.language || 'en-US';
+    recog.onresult = (e) => {
+      let finalText = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+      }
+      if (finalText.trim()) setComposeText(prev => prev ? prev + ' ' + finalText.trim() : finalText.trim());
+    };
+    recog.onerror = () => setIsListening(false);
+    recog.onend = () => setIsListening(false);
+    recognitionRef.current = recog;
+    recog.start();
+    setIsListening(true);
+  }
+
+  return (
+    <div className="editor-wrap">
+      <div className="editor-topbar">
+        <button className="icon-btn-plain" onClick={onBack}>{Icon.back}</button>
+        <input type="text" className="editor-title-input" placeholder="Untitled"
+          value={title} onChange={e => setTitle(e.target.value)} />
+        {note.archived ? (
+          <>
+            <button className="icon-btn-plain" onClick={onRestore} title="restore">{Icon.restore}</button>
+            <button className="icon-btn-plain" onClick={onDeleteForever} title="delete forever">{Icon.trash}</button>
+          </>
+        ) : (
+          <button className="icon-btn-plain" onClick={onArchive} title="archive">{Icon.archive}</button>
+        )}
+      </div>
+
+      {note.archived && <div className="archive-banner">This note is archived. Restore it to keep editing, or delete it for good.</div>}
+
+      <CategoryPicker categories={categories} value={category} onSelect={setCategory} onAddCategory={onAddCategory} />
+
+      {blocks.length === 0 && <div className="empty-msg">Nothing here yet — say or type something below.</div>}
+
+      {blocks.map((block, i) => (
+        <div className={'block-row' + (leaving[block.id] ? ' leaving' : '')} key={block.id}>
+          {block.type === 'check' ? (
+            <div className={'block-check' + (leaving[block.id] ? ' checked' : '')} onClick={() => completeBlock(block.id)}>
+              {Icon.check}
+            </div>
+          ) : (
+            <div style={{ width: 19, flexShrink: 0, marginTop: 3 }}></div>
+          )}
+          <textarea
+            ref={el => { if (el) { refs.current[block.id] = el; } else { delete refs.current[block.id]; } }}
+            className="block-text"
+            rows={1}
+            value={block.text}
+            onChange={e => { setBlockText(block.id, e.target.value); autoGrow(e.target); }}
+            onKeyDown={e => handleBlockKeyDown(e, block, i)}
+          />
+        </div>
+      ))}
+
+      <div className="editor-hint">tip: start a line with "- " for a tap-to-complete item</div>
+
+      <div className="compose-bar">
+        <textarea
+          ref={composeRef}
+          className="compose-textarea"
+          rows={1}
+          placeholder='Type a note, or "- " for a checklist item...'
+          value={composeText}
+          onChange={e => { setComposeText(e.target.value); autoGrow(e.target); }}
+        />
+        <div className="compose-actions">
+          <button className={'mic-btn' + (isListening ? ' listening' : '')} onClick={toggleMic}
+            disabled={!micSupported} title={micSupported ? (isListening ? 'stop dictation' : 'dictate') : 'voice input not supported'}>
+            {Icon.mic}
+          </button>
+          <button className="send-btn" onClick={handleSend} disabled={composeText.trim() === ''} title="save">
+            {Icon.send}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app-root')).render(<App />);
