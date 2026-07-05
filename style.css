@@ -131,13 +131,14 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .nav-item.active { color: #fff; }
 
 .nav-create-btn {
-  background: none; border: none;
+  width: 44px; height: 44px; border-radius: 14px;
+  background: #4e4e50; border: none;
   display: flex; align-items: center; justify-content: center;
-  color: var(--muted); cursor: pointer;
-  transition: color .12s;
+  color: #fff; cursor: pointer;
+  transition: background .12s;
 }
 .nav-create-btn svg { width: 22px; height: 22px; }
-.nav-create-btn:hover, .nav-create-btn:active { color: #fff; }
+.nav-create-btn:hover, .nav-create-btn:active { background: #636366; }
 
 .cat-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .cat-pick {
