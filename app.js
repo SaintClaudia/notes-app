@@ -219,6 +219,10 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
     return clean;
   }
   const editingNote = editingId ? notes.find((n) => n.id === editingId) : null;
+  function navigate(newTab) {
+    closeEditor();
+    setTab(newTab);
+  }
   return /* @__PURE__ */ React.createElement("div", { className: "shell" }, /* @__PURE__ */ React.createElement("div", { className: "screen" }, editingNote ? /* @__PURE__ */ React.createElement(
     Editor,
     {
@@ -244,7 +248,7 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
       onSaveApiKey: saveApiKey,
       onOpenNote: openNote
     }
-  ) : /* @__PURE__ */ React.createElement(NotesList, { notes, onOpenNote: openNote, onOpenArchive: () => setViewingArchive(true) })), !editingNote && !viewingArchive && /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (tab === "dashboard" ? " active" : ""), onClick: () => setTab("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus)), /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (tab === "notes" ? " active" : ""), onClick: () => setTab("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes"))));
+  ) : /* @__PURE__ */ React.createElement(NotesList, { notes, onOpenNote: openNote, onOpenArchive: () => setViewingArchive(true) })), !viewingArchive && /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "dashboard" ? " active" : ""), onClick: () => navigate("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus)), /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "notes" ? " active" : ""), onClick: () => navigate("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes"))));
 }
 function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summaryErr, apiKey, onSaveApiKey, onOpenNote }) {
   const [keyDraft, setKeyDraft] = useState(apiKey);

@@ -213,6 +213,11 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
 
   const editingNote = editingId ? notes.find(n => n.id === editingId) : null;
 
+  function navigate(newTab) {
+    closeEditor();
+    setTab(newTab);
+  }
+
   return (
     <div className="shell">
       <div className="screen">
@@ -236,15 +241,15 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
         )}
       </div>
 
-      {!editingNote && !viewingArchive && (
+      {!viewingArchive && (
         <div className="bottom-nav">
-          <div className={'nav-item' + (tab === 'dashboard' ? ' active' : '')} onClick={() => setTab('dashboard')}>
+          <div className={'nav-item' + (!editingNote && tab === 'dashboard' ? ' active' : '')} onClick={() => navigate('dashboard')}>
             {Icon.grid}<span className="nav-label">dashboard</span>
           </div>
           <div className="nav-item" onClick={openNewNote}>
             <button className="nav-create-btn">{Icon.plus}</button>
           </div>
-          <div className={'nav-item' + (tab === 'notes' ? ' active' : '')} onClick={() => setTab('notes')}>
+          <div className={'nav-item' + (!editingNote && tab === 'notes' ? ' active' : '')} onClick={() => navigate('notes')}>
             {Icon.list}<span className="nav-label">notes</span>
           </div>
         </div>
