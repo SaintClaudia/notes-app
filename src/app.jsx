@@ -260,18 +260,40 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
 
 /* ---------- Dashboard ---------- */
 function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summaryErr, apiKey, onSaveApiKey, onOpenNote }) {
-  const [keyDraft, setKeyDraft] = useState(apiKey);
+  const [activeFilter, setActiveFilter] = useState(null);
   const [showKey, setShowKey] = useState(false);
+  const [keyDraft, setKeyDraft] = useState(apiKey);
 
   const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n));
-  const breakdown = categories.map(cat => ({
-    cat, count: realNotes.filter(n => n.category === cat).reduce((a, n) => a + noteActiveCount(n), 0)
-  })).filter(b => b.count > 0);
+  const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0);
 
-  function handleKeySave() {
-    onSaveApiKey(keyDraft);
-    setShowKey(false);
+  const catCounts = categories
+    .map(cat => ({ cat, count: realNotes.filter(n => n.category === cat).length }))
+    .filter(b => b.count > 0);
+
+  const filteredNotes = activeFilter ? realNotes.filter(n => n.category === activeFilter) : realNotes;
+
+  function buildLocalSummary() {
+    if (realNotes.length === 0) return 'No notes yet — tap + to start one.';
+    const parts = [
+      `${realNotes.length} note${realNotes.length !== 1 ? 's' : ''}, ${totalTasks} active task${totalTasks !== 1 ? 's' : ''}.`
+    ];
+    if (catCounts.length > 0) {
+      parts.push(catCounts.map(b => `${b.cat}: ${b.count}`).join(' · ') + '.');
+    }
+    const recent = [...realNotes].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    if (recent) {
+      const diff = Date.now() - recent.updatedAt;
+      const when = diff < 60000 ? 'just now'
+        : diff < 3600000 ? `${Math.floor(diff / 60000)}m ago`
+        : diff < 86400000 ? `${Math.floor(diff / 3600000)}h ago`
+        : new Date(recent.updatedAt).toLocaleDateString();
+      parts.push(`Last updated: "${recent.title || 'Untitled'}" ${when}.`);
+    }
+    return parts.join('\n');
   }
+
+  function handleKeySave() { onSaveApiKey(keyDraft); setShowKey(false); }
 
   return (
     <div>
@@ -280,58 +302,72 @@ function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summ
       </div>
       {!storageOk && <div className="empty-msg" style={{ color: 'var(--danger)' }}>storage error — changes may not save</div>}
 
-      {breakdown.length > 0 ? (
-        <div className="cat-breakdown">
-          {breakdown.map(b => (
-            <div className="cat-chip" key={b.cat}><b>{b.count}</b> {b.cat}</div>
+      <div className="stat-row">
+        <div className="stat">
+          <div className="num">{totalTasks}</div>
+          <div className="label">active tasks</div>
+        </div>
+        <div className="stat">
+          <div className="num">{realNotes.length}</div>
+          <div className="label">notes</div>
+        </div>
+      </div>
+
+      {catCounts.length > 0 && (
+        <div className="cat-filter-grid">
+          {catCounts.map(b => (
+            <div
+              key={b.cat}
+              className={'cat-filter-chip' + (activeFilter === b.cat ? ' active' : '')}
+              style={catCounts.length === 1 ? { gridColumn: '1 / -1' } : {}}
+              onClick={() => setActiveFilter(activeFilter === b.cat ? null : b.cat)}
+            >
+              <div className="num">{b.count}</div>
+              <div className="label">{b.cat}</div>
+            </div>
           ))}
         </div>
-      ) : (
-        <div className="empty-msg">No tagged active tasks yet.</div>
       )}
 
       <div className="panel">
         <div className="panel-title">
           <h2>ai summary</h2>
-          <button className="icon-btn-plain" title="Set API key" onClick={() => setShowKey(v => !v)}>{Icon.key}</button>
+          <button className="icon-btn-plain" title="Set API key for AI summaries" onClick={() => setShowKey(v => !v)}>{Icon.key}</button>
         </div>
-
         {showKey && (
           <div>
             <div className="api-key-row">
-              <input
-                type="password"
-                placeholder="sk-ant-..."
-                value={keyDraft}
+              <input type="password" placeholder="sk-ant-..." value={keyDraft}
                 onChange={e => setKeyDraft(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleKeySave()}
-              />
+                onKeyDown={e => e.key === 'Enter' && handleKeySave()} />
               <button className="primary" onClick={handleKeySave}>Save</button>
             </div>
-            <div className="api-key-hint">
-              Your key is stored only in this browser. Get one at{' '}
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.
-            </div>
+            <div className="api-key-hint">Optional — enables AI summaries via Anthropic. Key stored in this browser only.</div>
           </div>
         )}
-
-        {summaryErr ? (
-          <div className="summary-box" style={{ color: 'var(--danger)', marginTop: showKey ? 10 : 0 }}>{summaryErr}</div>
-        ) : !apiKey ? (
-          <div className="summary-box placeholder">Tap the key icon above to add your Anthropic API key and enable AI summaries.</div>
-        ) : (
-          <div className={'summary-box' + (!summary && !summaryLoading ? ' placeholder' : '')} style={{ marginTop: showKey ? 10 : 0 }}>
-            {summaryLoading
-              ? <span>updating summary<span className="cursor-blink"></span></span>
-              : (summary || 'Nothing to summarize yet — add a note to get started.')}
-          </div>
-        )}
+        <div className={'summary-box' + (realNotes.length === 0 ? ' placeholder' : '')} style={showKey ? { marginTop: 10 } : {}}>
+          {apiKey
+            ? summaryLoading
+              ? <span>updating<span className="cursor-blink"></span></span>
+              : summaryErr
+                ? <span style={{ color: 'var(--danger)' }}>{summaryErr}</span>
+                : (summary || 'Nothing to summarize yet.')
+            : buildLocalSummary()
+          }
+        </div>
       </div>
 
       <div className="panel">
-        <div className="panel-title"><h2>recent</h2></div>
-        {realNotes.length === 0 && <div className="empty-msg">No notes yet — tap + to start one.</div>}
-        {realNotes.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map(n => (
+        <div className="panel-title">
+          <h2>{activeFilter || 'recent'}</h2>
+          {activeFilter && (
+            <button className="icon-btn-plain" onClick={() => setActiveFilter(null)} title="clear filter">✕</button>
+          )}
+        </div>
+        {filteredNotes.length === 0 && (
+          <div className="empty-msg">{activeFilter ? `No notes tagged "${activeFilter}".` : 'No notes yet — tap + to start one.'}</div>
+        )}
+        {[...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map(n => (
           <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)} style={{ marginBottom: 8 }}>
             <div className="title">{n.title || 'Untitled'}</div>
             <div className="snippet">{noteSnippet(n)}</div>

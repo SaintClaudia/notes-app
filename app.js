@@ -251,18 +251,44 @@ Write a short, plain, useful summary (4-8 lines max) of what's still active/pend
   ) : /* @__PURE__ */ React.createElement(NotesList, { notes, onOpenNote: openNote, onOpenArchive: () => setViewingArchive(true) })), !viewingArchive && /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "dashboard" ? " active" : ""), onClick: () => navigate("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus)), /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "notes" ? " active" : ""), onClick: () => navigate("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes"))));
 }
 function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summaryErr, apiKey, onSaveApiKey, onOpenNote }) {
-  const [keyDraft, setKeyDraft] = useState(apiKey);
+  const [activeFilter, setActiveFilter] = useState(null);
   const [showKey, setShowKey] = useState(false);
+  const [keyDraft, setKeyDraft] = useState(apiKey);
   const realNotes = notes.filter((n) => !n.archived && !isNoteEmpty(n));
-  const breakdown = categories.map((cat) => ({
-    cat,
-    count: realNotes.filter((n) => n.category === cat).reduce((a, n) => a + noteActiveCount(n), 0)
-  })).filter((b) => b.count > 0);
+  const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0);
+  const catCounts = categories.map((cat) => ({ cat, count: realNotes.filter((n) => n.category === cat).length })).filter((b) => b.count > 0);
+  const filteredNotes = activeFilter ? realNotes.filter((n) => n.category === activeFilter) : realNotes;
+  function buildLocalSummary() {
+    if (realNotes.length === 0) return "No notes yet \u2014 tap + to start one.";
+    const parts = [
+      `${realNotes.length} note${realNotes.length !== 1 ? "s" : ""}, ${totalTasks} active task${totalTasks !== 1 ? "s" : ""}.`
+    ];
+    if (catCounts.length > 0) {
+      parts.push(catCounts.map((b) => `${b.cat}: ${b.count}`).join(" \xB7 ") + ".");
+    }
+    const recent = [...realNotes].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    if (recent) {
+      const diff = Date.now() - recent.updatedAt;
+      const when = diff < 6e4 ? "just now" : diff < 36e5 ? `${Math.floor(diff / 6e4)}m ago` : diff < 864e5 ? `${Math.floor(diff / 36e5)}h ago` : new Date(recent.updatedAt).toLocaleDateString();
+      parts.push(`Last updated: "${recent.title || "Untitled"}" ${when}.`);
+    }
+    return parts.join("\n");
+  }
   function handleKeySave() {
     onSaveApiKey(keyDraft);
     setShowKey(false);
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), breakdown.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "cat-breakdown" }, breakdown.map((b) => /* @__PURE__ */ React.createElement("div", { className: "cat-chip", key: b.cat }, /* @__PURE__ */ React.createElement("b", null, b.count), " ", b.cat))) : /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, "No tagged active tasks yet."), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, "ai summary"), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", title: "Set API key", onClick: () => setShowKey((v) => !v) }, Icon.key)), showKey && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "api-key-row" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "stat-row" }, /* @__PURE__ */ React.createElement("div", { className: "stat" }, /* @__PURE__ */ React.createElement("div", { className: "num" }, totalTasks), /* @__PURE__ */ React.createElement("div", { className: "label" }, "active tasks")), /* @__PURE__ */ React.createElement("div", { className: "stat" }, /* @__PURE__ */ React.createElement("div", { className: "num" }, realNotes.length), /* @__PURE__ */ React.createElement("div", { className: "label" }, "notes"))), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      key: b.cat,
+      className: "cat-filter-chip" + (activeFilter === b.cat ? " active" : ""),
+      style: catCounts.length === 1 ? { gridColumn: "1 / -1" } : {},
+      onClick: () => setActiveFilter(activeFilter === b.cat ? null : b.cat)
+    },
+    /* @__PURE__ */ React.createElement("div", { className: "num" }, b.count),
+    /* @__PURE__ */ React.createElement("div", { className: "label" }, b.cat)
+  ))), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, "ai summary"), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", title: "Set API key for AI summaries", onClick: () => setShowKey((v) => !v) }, Icon.key)), showKey && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "api-key-row" }, /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "password",
@@ -271,7 +297,7 @@ function Dashboard({ notes, categories, storageOk, summary, summaryLoading, summ
       onChange: (e) => setKeyDraft(e.target.value),
       onKeyDown: (e) => e.key === "Enter" && handleKeySave()
     }
-  ), /* @__PURE__ */ React.createElement("button", { className: "primary", onClick: handleKeySave }, "Save")), /* @__PURE__ */ React.createElement("div", { className: "api-key-hint" }, "Your key is stored only in this browser. Get one at", " ", /* @__PURE__ */ React.createElement("a", { href: "https://console.anthropic.com/settings/keys", target: "_blank", rel: "noreferrer" }, "console.anthropic.com"), ".")), summaryErr ? /* @__PURE__ */ React.createElement("div", { className: "summary-box", style: { color: "var(--danger)", marginTop: showKey ? 10 : 0 } }, summaryErr) : !apiKey ? /* @__PURE__ */ React.createElement("div", { className: "summary-box placeholder" }, "Tap the key icon above to add your Anthropic API key and enable AI summaries.") : /* @__PURE__ */ React.createElement("div", { className: "summary-box" + (!summary && !summaryLoading ? " placeholder" : ""), style: { marginTop: showKey ? 10 : 0 } }, summaryLoading ? /* @__PURE__ */ React.createElement("span", null, "updating summary", /* @__PURE__ */ React.createElement("span", { className: "cursor-blink" })) : summary || "Nothing to summarize yet \u2014 add a note to get started.")), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, "recent")), realNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, "No notes yet \u2014 tap + to start one."), realNotes.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id), style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))))));
+  ), /* @__PURE__ */ React.createElement("button", { className: "primary", onClick: handleKeySave }, "Save")), /* @__PURE__ */ React.createElement("div", { className: "api-key-hint" }, "Optional \u2014 enables AI summaries via Anthropic. Key stored in this browser only.")), /* @__PURE__ */ React.createElement("div", { className: "summary-box" + (realNotes.length === 0 ? " placeholder" : ""), style: showKey ? { marginTop: 10 } : {} }, apiKey ? summaryLoading ? /* @__PURE__ */ React.createElement("span", null, "updating", /* @__PURE__ */ React.createElement("span", { className: "cursor-blink" })) : summaryErr ? /* @__PURE__ */ React.createElement("span", { style: { color: "var(--danger)" } }, summaryErr) : summary || "Nothing to summarize yet." : buildLocalSummary())), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, activeFilter || "recent"), activeFilter && /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setActiveFilter(null), title: "clear filter" }, "\u2715")), filteredNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, activeFilter ? `No notes tagged "${activeFilter}".` : "No notes yet \u2014 tap + to start one."), [...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id), style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))))));
 }
 function NotesList({ notes, onOpenNote, onOpenArchive }) {
   const [q, setQ] = useState("");

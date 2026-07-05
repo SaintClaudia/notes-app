@@ -81,9 +81,22 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .stat .num { font-size: 20px; color: var(--accent); font-weight: 600; }
 .stat .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
 
-.cat-breakdown { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.cat-chip { font-size: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 4px 10px; color: var(--text); }
-.cat-chip b { color: var(--accent); font-weight: 600; }
+.cat-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cat-filter-chip {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 12px; cursor: pointer; transition: border-color .12s;
+}
+.cat-filter-chip:hover { border-color: var(--accent); }
+.cat-filter-chip.active { background: var(--accent-dim); border-color: var(--accent); }
+.cat-filter-chip .num { font-size: 20px; color: var(--accent); font-weight: 600; }
+.cat-filter-chip.active .num { color: #fff; }
+.cat-filter-chip .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+.cat-filter-chip.active .label { color: rgba(255,255,255,.7); }
 
 .summary-box {
   background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
