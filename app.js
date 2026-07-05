@@ -385,6 +385,26 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
     }, 220);
   }
   function handleBlockKeyDown(e, block, index) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (block.type === "check" && block.text === "") {
+        const b = newBlock("text", "");
+        setBlocks((prev) => {
+          const next = [...prev];
+          next.splice(index + 1, 0, b);
+          return next;
+        });
+        setFocusTarget({ id: b.id, pos: 0 });
+      } else {
+        const b = newBlock(block.type, "");
+        setBlocks((prev) => {
+          const next = [...prev];
+          next.splice(index + 1, 0, b);
+          return next;
+        });
+        setFocusTarget({ id: b.id, pos: 0 });
+      }
+    }
     if (e.key === "Backspace") {
       const el = e.target;
       if (el.selectionStart === 0 && el.selectionEnd === 0 && block.text === "") {
