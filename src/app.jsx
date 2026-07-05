@@ -561,12 +561,10 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
         )}
         {blocks.map((block, i) => (
           <div className={'block-row' + (leaving[block.id] ? ' leaving' : '')} key={block.id}>
-            {block.type === 'check' ? (
+            {block.type === 'check' && (
               <div className={'block-check' + (leaving[block.id] ? ' checked' : '')} onClick={() => completeBlock(block.id)}>
                 {Icon.check}
               </div>
-            ) : (
-              <div style={{ width: 19, flexShrink: 0, marginTop: 3 }}></div>
             )}
             <textarea
               ref={el => { if (el) { refs.current[block.id] = el; } else { delete refs.current[block.id]; } }}
