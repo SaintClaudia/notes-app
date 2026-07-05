@@ -80,16 +80,24 @@ function App() {
 
   useEffect(() => {
     (async () => {
+      let loadedNotes = [];
       try {
         const r = await storageAdapter.get('notes_v2');
-        setNotes(r ? JSON.parse(r.value) : []);
-      } catch (e) { setNotes([]); }
+        loadedNotes = r ? JSON.parse(r.value) : [];
+      } catch (e) {}
       try {
         const c = await storageAdapter.get('categories_v1');
         setCategories(c ? JSON.parse(c.value) : DEFAULT_CATEGORIES);
       } catch (e) { setCategories(DEFAULT_CATEGORIES); }
       const savedKey = localStorage.getItem(API_KEY_STORAGE) || '';
       setApiKey(savedKey);
+
+      // Always open a fresh note on launch
+      const n = newNote();
+      const next = [n, ...loadedNotes];
+      setNotes(next);
+      setEditingId(n.id);
+      try { await storageAdapter.set('notes_v2', JSON.stringify(next)); } catch (e) {}
     })();
   }, []);
 

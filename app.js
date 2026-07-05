@@ -77,11 +77,11 @@ function App() {
   const summaryTimer = useRef(null);
   useEffect(() => {
     (async () => {
+      let loadedNotes = [];
       try {
         const r = await storageAdapter.get("notes_v2");
-        setNotes(r ? JSON.parse(r.value) : []);
+        loadedNotes = r ? JSON.parse(r.value) : [];
       } catch (e) {
-        setNotes([]);
       }
       try {
         const c = await storageAdapter.get("categories_v1");
@@ -91,6 +91,14 @@ function App() {
       }
       const savedKey = localStorage.getItem(API_KEY_STORAGE) || "";
       setApiKey(savedKey);
+      const n = newNote();
+      const next = [n, ...loadedNotes];
+      setNotes(next);
+      setEditingId(n.id);
+      try {
+        await storageAdapter.set("notes_v2", JSON.stringify(next));
+      } catch (e) {
+      }
     })();
   }, []);
   const persist = useCallback(async (next) => {

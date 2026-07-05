@@ -25,7 +25,7 @@ html, body { margin: 0; padding: 0; background: #1e1e1e; height: 100%; }
 .screen { flex: 1; padding: 18px 16px 90px; overflow-y: auto; }
 .topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; min-height: 24px; }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 13px; }
-.brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.brand .dot { width: 8px; height: 8px; border-radius: 50%; background: #0BF81E; flex-shrink: 0; }
 .topbar-actions { margin-left: auto; display: flex; gap: 4px; }
 .icon-btn-plain {
   background: none; border: none; color: var(--text); cursor: pointer;
@@ -131,14 +131,14 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .nav-item.active { color: #fff; }
 
 .nav-create-btn {
-  width: 34px; height: 34px; border-radius: 10px;
-  background: var(--panel-alt); border: 1px solid var(--border);
+  width: 46px; height: 46px; border-radius: 13px;
+  background: #0BF81E; border: none;
   display: flex; align-items: center; justify-content: center;
-  color: var(--muted); cursor: pointer;
-  transition: background .12s, color .12s, border-color .12s;
+  color: #111; cursor: pointer;
+  transition: opacity .12s;
 }
-.nav-create-btn svg { width: 17px; height: 17px; }
-.nav-create-btn:hover, .nav-create-btn:active { background: #fff; border-color: #fff; color: #111; }
+.nav-create-btn svg { width: 24px; height: 24px; }
+.nav-create-btn:hover, .nav-create-btn:active { opacity: .85; }
 
 .cat-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .cat-pick {
