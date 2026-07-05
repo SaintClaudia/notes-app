@@ -641,6 +641,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
       </div>
 
       <div className="compose-bar" ref={composerRef}>
+        {isListening && <span className="listening-label">listening…</span>}
         {micSupported && (
           <button className={'mic-btn' + (isListening ? ' listening' : '')} onClick={toggleMic}
             title={isListening ? 'stop dictation' : 'dictate'}>
