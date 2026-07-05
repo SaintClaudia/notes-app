@@ -447,6 +447,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   const [showCompleted, setShowCompleted] = useState(false);
   const refs = useRef({});
   const recognitionRef = useRef(null);
+  const composerRef = useRef(null);
 
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   const micSupported = !!SpeechRecognitionCtor;
@@ -466,6 +467,20 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
 
   useEffect(() => {
     return () => { if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch (e) {} } };
+  }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    function updatePos() {
+      if (!composerRef.current) return;
+      const keyboardH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      composerRef.current.style.bottom = (keyboardH > 10 ? keyboardH + 16 : 130) + 'px';
+    }
+    vv.addEventListener('resize', updatePos);
+    vv.addEventListener('scroll', updatePos);
+    updatePos();
+    return () => { vv.removeEventListener('resize', updatePos); vv.removeEventListener('scroll', updatePos); };
   }, []);
 
   function addBlock() {
@@ -625,11 +640,13 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
         )}
       </div>
 
-      <div className="compose-bar">
-        <button className={'mic-btn' + (isListening ? ' listening' : '')} onClick={toggleMic}
-          disabled={!micSupported} title={micSupported ? (isListening ? 'stop dictation' : 'dictate') : 'voice input not supported'}>
-          {Icon.mic}
-        </button>
+      <div className="compose-bar" ref={composerRef}>
+        {micSupported && (
+          <button className={'mic-btn' + (isListening ? ' listening' : '')} onClick={toggleMic}
+            title={isListening ? 'stop dictation' : 'dictate'}>
+            {Icon.mic}
+          </button>
+        )}
         <button className="send-btn" onClick={addBlock} title="new line">
           {Icon.send}
         </button>

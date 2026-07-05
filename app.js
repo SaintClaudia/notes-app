@@ -332,6 +332,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
   const [showCompleted, setShowCompleted] = useState(false);
   const refs = useRef({});
   const recognitionRef = useRef(null);
+  const composerRef = useRef(null);
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   const micSupported = !!SpeechRecognitionCtor;
   useEffect(() => {
@@ -360,6 +361,22 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
         } catch (e) {
         }
       }
+    };
+  }, []);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    function updatePos() {
+      if (!composerRef.current) return;
+      const keyboardH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      composerRef.current.style.bottom = (keyboardH > 10 ? keyboardH + 16 : 130) + "px";
+    }
+    vv.addEventListener("resize", updatePos);
+    vv.addEventListener("scroll", updatePos);
+    updatePos();
+    return () => {
+      vv.removeEventListener("resize", updatePos);
+      vv.removeEventListener("scroll", updatePos);
     };
   }, []);
   function addBlock() {
@@ -489,13 +506,12 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onArchive, 
         onKeyDown: (e) => handleBlockKeyDown(e, block, i)
       }
     ));
-  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done" }, block.text))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar" }, /* @__PURE__ */ React.createElement(
+  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done" }, block.text))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar", ref: composerRef }, micSupported && /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "mic-btn" + (isListening ? " listening" : ""),
       onClick: toggleMic,
-      disabled: !micSupported,
-      title: micSupported ? isListening ? "stop dictation" : "dictate" : "voice input not supported"
+      title: isListening ? "stop dictation" : "dictate"
     },
     Icon.mic
   ), /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: addBlock, title: "new line" }, Icon.send)));
