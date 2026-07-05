@@ -172,7 +172,7 @@ function App() {
           <Dashboard notes={notes} categories={categories} storageOk={storageOk}
             onOpenNote={openNote} />
         ) : (
-          <NotesList notes={notes} onOpenNote={openNote} onOpenArchive={() => setViewingArchive(true)} />
+          <NotesList notes={notes} categories={categories} onOpenNote={openNote} onOpenArchive={() => setViewingArchive(true)} />
         )}
       </div>
 
@@ -293,9 +293,16 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 }
 
 /* ---------- Notes list ---------- */
-function NotesList({ notes, onOpenNote, onOpenArchive }) {
+function NotesList({ notes, categories, onOpenNote, onOpenArchive }) {
   const [q, setQ] = useState('');
-  const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n) && noteMatchesSearch(n, q)).sort((a, b) => b.updatedAt - a.updatedAt);
+  const [activeFilter, setActiveFilter] = useState(null);
+
+  const allReal = notes.filter(n => !n.archived && !isNoteEmpty(n));
+  const usedCats = categories.filter(cat => allReal.some(n => n.category === cat));
+  const realNotes = allReal
+    .filter(n => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
   return (
     <div>
       <div className="topbar">
@@ -308,7 +315,17 @@ function NotesList({ notes, onOpenNote, onOpenArchive }) {
         {Icon.search}
         <input type="text" placeholder="Search notes..." value={q} onChange={e => setQ(e.target.value)} />
       </div>
-      {realNotes.length === 0 && <div className="empty-msg">{q ? 'No matches.' : 'No notes yet.'}</div>}
+      {usedCats.length > 0 && (
+        <div className="filter-chips">
+          {usedCats.map(cat => (
+            <div key={cat} className={'filter-chip' + (activeFilter === cat ? ' active' : '')}
+              onClick={() => setActiveFilter(activeFilter === cat ? null : cat)}>
+              {cat}
+            </div>
+          ))}
+        </div>
+      )}
+      {realNotes.length === 0 && <div className="empty-msg">{q || activeFilter ? 'No matches.' : 'No notes yet.'}</div>}
       {realNotes.map(n => (
         <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)}>
           <div className="title">{n.title || 'Untitled'}</div>

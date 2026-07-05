@@ -156,6 +156,15 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .nav-create-btn svg { width: 22px; height: 22px; }
 .nav-create-btn:hover, .nav-create-btn:active { background: #636366; color: var(--bg); }
 
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.filter-chip {
+  font-size: 11px; font-family: var(--mono); padding: 4px 10px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--border); color: var(--muted); background: transparent;
+  transition: border-color .12s, color .12s;
+}
+.filter-chip:hover { border-color: var(--accent); color: var(--text); }
+.filter-chip.active { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+
 .cat-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .cat-pick {
   font-size: 11px; padding: 4px 10px; border-radius: 12px; cursor: pointer;
