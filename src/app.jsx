@@ -86,9 +86,10 @@ function noteSummary(n) {
 }
 
 function noteMatchesSearch(n, q) {
-  if (!q) return true;
+  if (!q.trim()) return true;
   const hay = (n.title + ' ' + n.tags.join(' ') + ' ' + n.blocks.map(b => stripHtml(b.text)).join(' ')).toLowerCase();
-  return hay.includes(q.toLowerCase());
+  const words = q.toLowerCase().trim().split(/\s+/);
+  return words.every(w => hay.includes(w));
 }
 
 /* ---------- icons ---------- */

@@ -81,9 +81,10 @@ function noteSummary(n) {
   return "Empty note";
 }
 function noteMatchesSearch(n, q) {
-  if (!q) return true;
+  if (!q.trim()) return true;
   const hay = (n.title + " " + n.tags.join(" ") + " " + n.blocks.map((b) => stripHtml(b.text)).join(" ")).toLowerCase();
-  return hay.includes(q.toLowerCase());
+  const words = q.toLowerCase().trim().split(/\s+/);
+  return words.every((w) => hay.includes(w));
 }
 const Icon = {
   grid: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "13", y: "3", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "3", y: "13", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "13", y: "13", width: "8", height: "8", rx: "1.5" })),
