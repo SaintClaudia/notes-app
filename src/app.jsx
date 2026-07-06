@@ -55,6 +55,7 @@ const Icon = {
   mic: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>,
   send: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>,
   key: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="8" cy="15" r="5"/><line x1="13" y1="10" x2="22" y2="10"/><line x1="19" y1="10" x2="19" y2="13"/></svg>,
+  refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
 };
 
 function autoGrow(el) {
@@ -196,6 +197,12 @@ function App() {
 /* ---------- Dashboard ---------- */
 function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
+  const [spinning, setSpinning] = useState(false);
+
+  function handleRefresh() {
+    setSpinning(true);
+    setTimeout(() => setSpinning(false), 600);
+  }
 
   const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n));
   const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0); // used in summary text
@@ -233,9 +240,14 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
       </div>
       {!storageOk && <div className="empty-msg" style={{ color: 'var(--danger)' }}>storage error — changes may not save</div>}
 
-      <div className="panel">
-        <div className="panel-title"><h2>summary</h2></div>
-        <div className={'summary-box' + (realNotes.length === 0 ? ' placeholder' : '')}>
+      <div className="summary-section">
+        <div className="summary-section-header">
+          <span className="summary-section-label">summary</span>
+          <button className="icon-btn-plain" onClick={handleRefresh} title="refresh">
+            <span className={spinning ? 'spin' : ''}>{Icon.refresh}</span>
+          </button>
+        </div>
+        <div className={'summary-text' + (realNotes.length === 0 ? ' placeholder' : '')}>
           {buildSummary()}
         </div>
       </div>
