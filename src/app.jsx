@@ -329,8 +329,11 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selected, setSelected] = useState(new Set());
+  const [pendingDelete, setPendingDelete] = useState(new Set());
+  const [deleteToast, setDeleteToast] = useState(null);
+  const deleteTimer = useRef(null);
 
-  const allReal = notes.filter(n => !n.archived && !isNoteEmpty(n));
+  const allReal = notes.filter(n => !n.archived && !isNoteEmpty(n) && !pendingDelete.has(n.id));
   const usedCats = categories.filter(cat => allReal.some(n => n.category === cat));
   const realNotes = allReal
     .filter(n => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q))
@@ -347,8 +350,23 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
   function exitEdit() { setIsEditing(false); setSelected(new Set()); }
 
   function handleDelete() {
-    onDeleteMany(selected);
+    const ids = new Set(selected);
+    const count = ids.size;
+    setPendingDelete(ids);
+    setDeleteToast(count);
     exitEdit();
+    clearTimeout(deleteTimer.current);
+    deleteTimer.current = setTimeout(() => {
+      onDeleteMany(ids);
+      setPendingDelete(new Set());
+      setDeleteToast(null);
+    }, 3000);
+  }
+
+  function handleUndo() {
+    clearTimeout(deleteTimer.current);
+    setPendingDelete(new Set());
+    setDeleteToast(null);
   }
 
   function handleCardTap(id) {
@@ -416,6 +434,12 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
           </div>
         </div>
       ))}
+      {deleteToast !== null && (
+        <div className="toast toast-undo">
+          <span>{deleteToast === 1 ? '1 note deleted' : `${deleteToast} notes deleted`}</span>
+          <button onClick={handleUndo}>Undo</button>
+        </div>
+      )}
     </div>
   );
 }

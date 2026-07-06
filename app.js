@@ -250,7 +250,10 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selected, setSelected] = useState(/* @__PURE__ */ new Set());
-  const allReal = notes.filter((n) => !n.archived && !isNoteEmpty(n));
+  const [pendingDelete, setPendingDelete] = useState(/* @__PURE__ */ new Set());
+  const [deleteToast, setDeleteToast] = useState(null);
+  const deleteTimer = useRef(null);
+  const allReal = notes.filter((n) => !n.archived && !isNoteEmpty(n) && !pendingDelete.has(n.id));
   const usedCats = categories.filter((cat) => allReal.some((n) => n.category === cat));
   const realNotes = allReal.filter((n) => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q)).sort((a, b) => b.updatedAt - a.updatedAt);
   function toggleSelect(id) {
@@ -265,8 +268,22 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
     setSelected(/* @__PURE__ */ new Set());
   }
   function handleDelete() {
-    onDeleteMany(selected);
+    const ids = new Set(selected);
+    const count = ids.size;
+    setPendingDelete(ids);
+    setDeleteToast(count);
     exitEdit();
+    clearTimeout(deleteTimer.current);
+    deleteTimer.current = setTimeout(() => {
+      onDeleteMany(ids);
+      setPendingDelete(/* @__PURE__ */ new Set());
+      setDeleteToast(null);
+    }, 3e3);
+  }
+  function handleUndo() {
+    clearTimeout(deleteTimer.current);
+    setPendingDelete(/* @__PURE__ */ new Set());
+    setDeleteToast(null);
   }
   function handleCardTap(id) {
     if (isEditing) {
@@ -301,7 +318,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
     },
     isEditing && /* @__PURE__ */ React.createElement("div", { className: "select-circle" + (selected.has(n.id) ? " checked" : "") }),
     /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, new Date(n.updatedAt).toLocaleDateString(), n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active")))
-  )));
+  )), deleteToast !== null && /* @__PURE__ */ React.createElement("div", { className: "toast toast-undo" }, /* @__PURE__ */ React.createElement("span", null, deleteToast === 1 ? "1 note deleted" : `${deleteToast} notes deleted`), /* @__PURE__ */ React.createElement("button", { onClick: handleUndo }, "Undo")));
 }
 function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCategory, onDeleteCategory }) {
   const [adding, setAdding] = useState(false);
