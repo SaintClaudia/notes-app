@@ -856,6 +856,63 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
   );
 }
 
+// Caret-position helpers so ArrowUp/Down/Left/Right can hop between block-level contentEditables,
+// which the browser otherwise treats as separate documents with no shared cursor navigation.
+function caretAtFirstLine(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return true;
+  const range = sel.getRangeAt(0).cloneRange();
+  range.collapse(true);
+  const rect = range.getClientRects()[0];
+  if (!rect) return true;
+  const elRect = el.getBoundingClientRect();
+  const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+  return rect.top - elRect.top < lineHeight / 2;
+}
+
+function caretAtLastLine(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return true;
+  const range = sel.getRangeAt(0).cloneRange();
+  range.collapse(true);
+  const rects = range.getClientRects();
+  const rect = rects[rects.length - 1];
+  if (!rect) return true;
+  const elRect = el.getBoundingClientRect();
+  const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+  return elRect.bottom - rect.bottom < lineHeight / 2;
+}
+
+function isCaretAtStart(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return false;
+  const range = sel.getRangeAt(0);
+  if (!range.collapsed || range.startOffset !== 0) return false;
+  let node = range.startContainer;
+  while (node !== el) {
+    if (node.previousSibling) return false;
+    node = node.parentNode;
+    if (!node) return false;
+  }
+  return true;
+}
+
+function isCaretAtEnd(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return false;
+  const range = sel.getRangeAt(0);
+  if (!range.collapsed) return false;
+  let node = range.startContainer;
+  const len = node.nodeType === 3 ? node.textContent.length : node.childNodes.length;
+  if (range.startOffset !== len) return false;
+  while (node !== el) {
+    if (node.nextSibling) return false;
+    node = node.parentNode;
+    if (!node) return false;
+  }
+  return true;
+}
+
 /* ---------- Editor ---------- */
 function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, onDeleteCategory, onBack, onSave }) {
   const [blocks, setBlocks] = useState(note.blocks);
@@ -965,6 +1022,36 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
         sel.removeAllRanges();
         sel.addRange(range);
       } catch (err) {}
+      return;
+    }
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      const el = e.currentTarget;
+      const goingUp = e.key === 'ArrowUp';
+      if (goingUp ? caretAtFirstLine(el) : caretAtLastLine(el)) {
+        const activeIds = blocks.filter(b => !b.done).map(b => b.id);
+        const pos = activeIds.indexOf(block.id);
+        const targetId = activeIds[goingUp ? pos - 1 : pos + 1];
+        if (targetId) {
+          e.preventDefault();
+          setFocusTarget({ id: targetId, pos: goingUp ? 'end' : 0 });
+        }
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const el = e.currentTarget;
+      const goingLeft = e.key === 'ArrowLeft';
+      if (goingLeft ? isCaretAtStart(el) : isCaretAtEnd(el)) {
+        const activeIds = blocks.filter(b => !b.done).map(b => b.id);
+        const pos = activeIds.indexOf(block.id);
+        const targetId = activeIds[goingLeft ? pos - 1 : pos + 1];
+        if (targetId) {
+          e.preventDefault();
+          setFocusTarget({ id: targetId, pos: goingLeft ? 'end' : 0 });
+        }
+      }
       return;
     }
 
