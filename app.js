@@ -697,6 +697,28 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
       e.preventDefault();
       const el = e.currentTarget;
       const isEmpty = el.innerHTML === "" || el.innerHTML === "<br>" || el.innerText.trim() === "";
+      const innerText = el.innerText || "";
+      const isBullet = innerText.startsWith("\u2022 ") || innerText.trim() === "\u2022";
+      if (isBullet) {
+        if (innerText.trim() === "\u2022" || innerText === "\u2022 ") {
+          const b = newBlock("text", "");
+          setBlocks((prev) => {
+            const next = [...prev];
+            next.splice(index, 1, b);
+            return next;
+          });
+          setFocusTarget({ id: b.id, pos: 0 });
+        } else {
+          const b = newBlock("text", "\u2022 ");
+          setBlocks((prev) => {
+            const next = [...prev];
+            next.splice(index + 1, 0, b);
+            return next;
+          });
+          setFocusTarget({ id: b.id, pos: "end" });
+        }
+        return;
+      }
       if (block.type === "check" && isEmpty) {
         const b = newBlock("text", "");
         setBlocks((prev) => {
