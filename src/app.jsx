@@ -19,7 +19,7 @@ const storageAdapter = {
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function newBlock(type = 'text', text = '') { return { id: uid(), type, text }; }
-function newNote() { return { id: uid(), title: '', category: '', archived: false, blocks: [], updatedAt: Date.now() }; }
+function newNote() { return { id: uid(), title: '', category: '', archived: false, private: false, blocks: [], updatedAt: Date.now() }; }
 
 function isNoteEmpty(n) {
   if (n.title && n.title.trim()) return false;
@@ -56,6 +56,8 @@ const Icon = {
   send: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>,
   key: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="8" cy="15" r="5"/><line x1="13" y1="10" x2="22" y2="10"/><line x1="19" y1="10" x2="19" y2="13"/></svg>,
   refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
+  eye: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  eyeOff: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
 };
 
 function autoGrow(el) {
@@ -220,22 +222,41 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 
   function buildSummary() {
     if (realNotes.length === 0) return 'No notes yet — tap + to start one.';
-    const parts = [
-      `${realNotes.length} note${realNotes.length !== 1 ? 's' : ''}, ${totalTasks} active task${totalTasks !== 1 ? 's' : ''}.`
-    ];
-    if (catCounts.length > 0) {
-      parts.push(catCounts.map(b => `${b.cat}: ${b.count}`).join(' · ') + '.');
+    const visible = realNotes.filter(n => !n.private);
+    if (visible.length === 0) return 'All notes are set to private.';
+
+    const lines = [];
+
+    // Group by category
+    const grouped = {};
+    visible.forEach(n => {
+      const key = n.category || '';
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(n);
+    });
+
+    // Category-grouped note descriptions
+    Object.entries(grouped).forEach(([cat, notes]) => {
+      const descs = notes.map(n => {
+        const title = n.title?.trim();
+        const firstText = n.blocks.find(b => !b.done && b.text?.trim())?.text.trim() || '';
+        if (title && firstText) return `${title} — ${firstText}`;
+        return title || firstText || 'Untitled';
+      });
+      lines.push(cat ? `${cat}: ${descs.join(', ')}.` : descs.join(', ') + '.');
+    });
+
+    // Surface active checklist items
+    const tasks = visible.flatMap(n =>
+      n.blocks.filter(b => b.type === 'check' && !b.done && b.text?.trim())
+    ).map(b => b.text.trim());
+    if (tasks.length > 0) {
+      const shown = tasks.slice(0, 4);
+      const extra = tasks.length - shown.length;
+      lines.push(`Active: ${shown.join(', ')}${extra > 0 ? ` +${extra} more` : ''}.`);
     }
-    const recent = [...realNotes].sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    if (recent) {
-      const diff = Date.now() - recent.updatedAt;
-      const when = diff < 60000 ? 'just now'
-        : diff < 3600000 ? `${Math.floor(diff / 60000)}m ago`
-        : diff < 86400000 ? `${Math.floor(diff / 3600000)}h ago`
-        : new Date(recent.updatedAt).toLocaleDateString();
-      parts.push(`Last updated: "${recent.title || 'Untitled'}" ${when}.`);
-    }
-    return parts.join('\n');
+
+    return lines.join('\n');
   }
 
   return (
@@ -492,13 +513,14 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || '');
+  const [isPrivate, setIsPrivate] = useState(note.private || false);
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const refs = useRef({});
   const composerRef = useRef(null);
 
-  useEffect(() => { onChange({ title, blocks, category }); }, [title, blocks, category]);
+  useEffect(() => { onChange({ title, blocks, category, private: isPrivate }); }, [title, blocks, category, isPrivate]);
   useLayoutEffect(() => { Object.values(refs.current).forEach(autoGrow); }, [blocks]);
 
   useEffect(() => {
@@ -595,6 +617,14 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   return (
     <div className="editor-wrap">
 
+
+      <div className="editor-header">
+        <button className={'privacy-btn' + (isPrivate ? ' active' : '')}
+          onClick={() => setIsPrivate(v => !v)}>
+          {isPrivate ? Icon.eyeOff : Icon.eye}
+          {isPrivate && <span className="privacy-label">hidden from summary</span>}
+        </button>
+      </div>
 
       <input type="text" className="editor-title" placeholder="Title"
         value={title} onChange={e => setTitle(e.target.value)} />

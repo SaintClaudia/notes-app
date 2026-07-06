@@ -207,6 +207,17 @@ input[type=password]::placeholder { color: #5a5a5a; }
 
 .editor-wrap { display: flex; flex-direction: column; height: 100%; }
 .editor-topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.editor-header { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.privacy-btn {
+  display: flex; align-items: center; gap: 5px;
+  background: none; border: none; color: var(--muted); padding: 2px 4px;
+  font-family: var(--mono); cursor: pointer; border-radius: 4px;
+  transition: color .12s;
+}
+.privacy-btn svg { width: 15px; height: 15px; }
+.privacy-btn.active { color: var(--accent); }
+.privacy-btn:hover { color: var(--text); }
+.privacy-label { font-size: 10.5px; color: var(--muted); }
 .editor-title {
   font-family: var(--mono); font-size: 20px; font-weight: 600;
   background: transparent; color: var(--text);

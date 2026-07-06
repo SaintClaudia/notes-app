@@ -25,7 +25,7 @@ function newBlock(type = "text", text = "") {
   return { id: uid(), type, text };
 }
 function newNote() {
-  return { id: uid(), title: "", category: "", archived: false, blocks: [], updatedAt: Date.now() };
+  return { id: uid(), title: "", category: "", archived: false, private: false, blocks: [], updatedAt: Date.now() };
 }
 function isNoteEmpty(n) {
   if (n.title && n.title.trim()) return false;
@@ -56,7 +56,9 @@ const Icon = {
   mic: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("rect", { x: "9", y: "2", width: "6", height: "12", rx: "3" }), /* @__PURE__ */ React.createElement("path", { d: "M5 10v1a7 7 0 0 0 14 0v-1" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "18", x2: "12", y2: "22" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "22", x2: "16", y2: "22" })),
   send: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" }), /* @__PURE__ */ React.createElement("polyline", { points: "13 6 19 12 13 18" })),
   key: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("circle", { cx: "8", cy: "15", r: "5" }), /* @__PURE__ */ React.createElement("line", { x1: "13", y1: "10", x2: "22", y2: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "19", y1: "10", x2: "19", y2: "13" })),
-  refresh: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("polyline", { points: "23 4 23 10 17 10" }), /* @__PURE__ */ React.createElement("path", { d: "M20.49 15a9 9 0 1 1-2.12-9.36L23 10" }))
+  refresh: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("polyline", { points: "23 4 23 10 17 10" }), /* @__PURE__ */ React.createElement("path", { d: "M20.49 15a9 9 0 1 1-2.12-9.36L23 10" })),
+  eye: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" })),
+  eyeOff: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }))
 };
 function autoGrow(el) {
   if (!el) return;
@@ -197,19 +199,33 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const filteredNotes = activeFilter ? realNotes.filter((n) => n.category === activeFilter) : realNotes;
   function buildSummary() {
     if (realNotes.length === 0) return "No notes yet \u2014 tap + to start one.";
-    const parts = [
-      `${realNotes.length} note${realNotes.length !== 1 ? "s" : ""}, ${totalTasks} active task${totalTasks !== 1 ? "s" : ""}.`
-    ];
-    if (catCounts.length > 0) {
-      parts.push(catCounts.map((b) => `${b.cat}: ${b.count}`).join(" \xB7 ") + ".");
+    const visible = realNotes.filter((n) => !n.private);
+    if (visible.length === 0) return "All notes are set to private.";
+    const lines = [];
+    const grouped = {};
+    visible.forEach((n) => {
+      const key = n.category || "";
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(n);
+    });
+    Object.entries(grouped).forEach(([cat, notes2]) => {
+      const descs = notes2.map((n) => {
+        const title = n.title?.trim();
+        const firstText = n.blocks.find((b) => !b.done && b.text?.trim())?.text.trim() || "";
+        if (title && firstText) return `${title} \u2014 ${firstText}`;
+        return title || firstText || "Untitled";
+      });
+      lines.push(cat ? `${cat}: ${descs.join(", ")}.` : descs.join(", ") + ".");
+    });
+    const tasks = visible.flatMap(
+      (n) => n.blocks.filter((b) => b.type === "check" && !b.done && b.text?.trim())
+    ).map((b) => b.text.trim());
+    if (tasks.length > 0) {
+      const shown = tasks.slice(0, 4);
+      const extra = tasks.length - shown.length;
+      lines.push(`Active: ${shown.join(", ")}${extra > 0 ? ` +${extra} more` : ""}.`);
     }
-    const recent = [...realNotes].sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    if (recent) {
-      const diff = Date.now() - recent.updatedAt;
-      const when = diff < 6e4 ? "just now" : diff < 36e5 ? `${Math.floor(diff / 6e4)}m ago` : diff < 864e5 ? `${Math.floor(diff / 36e5)}h ago` : new Date(recent.updatedAt).toLocaleDateString();
-      parts.push(`Last updated: "${recent.title || "Untitled"}" ${when}.`);
-    }
-    return parts.join("\n");
+    return lines.join("\n");
   }
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "summary"), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: handleRefresh, title: "refresh" }, /* @__PURE__ */ React.createElement("span", { className: spinning ? "spin" : "" }, Icon.refresh))), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
     "div",
@@ -388,14 +404,15 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || "");
+  const [isPrivate, setIsPrivate] = useState(note.private || false);
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const refs = useRef({});
   const composerRef = useRef(null);
   useEffect(() => {
-    onChange({ title, blocks, category });
-  }, [title, blocks, category]);
+    onChange({ title, blocks, category, private: isPrivate });
+  }, [title, blocks, category, isPrivate]);
   useLayoutEffect(() => {
     Object.values(refs.current).forEach(autoGrow);
   }, [blocks]);
@@ -491,7 +508,15 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   }
   const activeBlocks = blocks.filter((b) => !b.done);
   const completedBlocks = blocks.filter((b) => b.done);
-  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-header" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      className: "privacy-btn" + (isPrivate ? " active" : ""),
+      onClick: () => setIsPrivate((v) => !v)
+    },
+    isPrivate ? Icon.eyeOff : Icon.eye,
+    isPrivate && /* @__PURE__ */ React.createElement("span", { className: "privacy-label" }, "hidden from summary")
+  )), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
