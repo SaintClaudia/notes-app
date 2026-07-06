@@ -268,7 +268,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
   const [offsetX, setOffsetX] = useState(0);
   const [snap, setSnap] = useState(false);
   const [open, setOpen] = useState(false);
-  const REVEAL = 112;
+  const REVEAL = 70;
   const startX = useRef(0);
   const startY = useRef(0);
   const active = useRef(false);
@@ -350,7 +350,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
         close();
       }
     },
-    /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", right: 0, top: 0, bottom: 0, width: REVEAL, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 } }, /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn", onClick: handleDelete }, Icon.trash), /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn", onClick: handlePin }, Icon.pin)),
+    /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", right: 0, top: 0, bottom: 0, width: REVEAL, display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn", onClick: handleDelete }, Icon.trash)),
     /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -459,7 +459,18 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
         onClick: () => handleCardTap(n.id)
       },
       isEditing && /* @__PURE__ */ React.createElement("div", { className: "select-circle" + (selected.has(n.id) ? " checked" : "") }),
-      /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.pinned && /* @__PURE__ */ React.createElement("span", { className: "pin-badge" }, Icon.pin), n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, new Date(n.updatedAt).toLocaleDateString(), n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active")))
+      /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, new Date(n.updatedAt).toLocaleDateString(), n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))),
+      !isEditing && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "card-pin-btn" + (n.pinned ? " pinned" : ""),
+          onClick: (e) => {
+            e.stopPropagation();
+            onPinNote(n.id);
+          }
+        },
+        Icon.pin
+      )
     )
   )), deleteToast !== null && /* @__PURE__ */ React.createElement("div", { className: "toast toast-undo" }, /* @__PURE__ */ React.createElement("span", null, deleteToast === 1 ? "1 note deleted" : `${deleteToast} notes deleted`), /* @__PURE__ */ React.createElement("button", { onClick: handleUndo }, "Undo")));
 }

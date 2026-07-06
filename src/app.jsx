@@ -359,7 +359,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
   const [offsetX, setOffsetX] = useState(0);
   const [snap, setSnap] = useState(false);
   const [open, setOpen] = useState(false);
-  const REVEAL = 112;
+  const REVEAL = 70;
   const startX = useRef(0);
   const startY = useRef(0);
   const active = useRef(false);
@@ -431,9 +431,8 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
     <div ref={cardRef} style={{ position: 'relative', marginBottom: 10 }}
       onTouchStart={onStart} onTouchEnd={onEnd}
       onTouchCancel={() => { active.current = false; close(); }}>
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <button className="swipe-action-btn" onClick={handleDelete}>{Icon.trash}</button>
-        <button className="swipe-action-btn" onClick={handlePin}>{Icon.pin}</button>
       </div>
       <div className={'swipe-inner' + (swiped ? ' swiped' : '')}
         style={{ transform: `translateX(${offsetX}px)`, transition: snap ? 'transform .22s ease' : 'none', willChange: 'transform' }}
@@ -563,10 +562,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
               <div className={'select-circle' + (selected.has(n.id) ? ' checked' : '')} />
             )}
             <div className="note-card-body">
-              <div className="title">
-                {n.pinned && <span className="pin-badge">{Icon.pin}</span>}
-                {n.title || 'Untitled'}
-              </div>
+              <div className="title">{n.title || 'Untitled'}</div>
               <div className="snippet">{noteSnippet(n)}</div>
               <div className="meta-row">
                 <span className="meta">
@@ -576,6 +572,12 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
                 {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
               </div>
             </div>
+            {!isEditing && (
+              <button className={'card-pin-btn' + (n.pinned ? ' pinned' : '')}
+                onClick={e => { e.stopPropagation(); onPinNote(n.id); }}>
+                {Icon.pin}
+              </button>
+            )}
           </div>
         </SwipeableCard>
       ))}
