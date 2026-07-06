@@ -225,7 +225,7 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .cat-pick.add { border-style: dashed; }
 .cat-new-input {
   font-size: 16px; padding: 4px 8px; border-radius: 12px; border: 1px solid var(--accent);
-  background: var(--bg); color: var(--text); width: 110px; outline: none;
+  background: var(--bg); color: var(--text); width: 150px; outline: none;
 }
 
 .editor-wrap { display: flex; flex-direction: column; height: 100%; }
