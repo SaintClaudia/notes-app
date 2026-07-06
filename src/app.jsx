@@ -171,6 +171,11 @@ function App() {
   }
 
   function openNewNote() {
+    // Already sitting on an untouched blank note (e.g. tapped + more than once) —
+    // reuse it instead of littering storage with duplicate empty notes.
+    const current = editingId ? notes.find(n => n.id === editingId) : null;
+    if (current && isNoteEmpty(current)) return;
+
     const n = newNote();
     persist([n, ...notes]);
     setEditingId(n.id);

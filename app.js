@@ -163,6 +163,8 @@ function App() {
     return /* @__PURE__ */ React.createElement("div", { style: { padding: "40px", color: "var(--muted)" } }, "loading", /* @__PURE__ */ React.createElement("span", { className: "cursor-blink" }));
   }
   function openNewNote() {
+    const current = editingId ? notes.find((n2) => n2.id === editingId) : null;
+    if (current && isNoteEmpty(current)) return;
     const n = newNote();
     persist([n, ...notes]);
     setEditingId(n.id);
