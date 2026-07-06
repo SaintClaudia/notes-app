@@ -143,13 +143,12 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .pin-badge svg { width: 11px; height: 11px; }
 .swipe-inner.swiped > .note-card { border-left-color: var(--accent); border-left-width: 2px; }
 .swipe-action-btn {
-  background: none; border: none; color: var(--muted); cursor: pointer;
+  background: none; border: none; cursor: pointer;
   width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  transition: color .12s;
+  outline: none; -webkit-tap-highlight-color: transparent;
 }
 .swipe-action-btn svg { width: 20px; height: 20px; }
-.swipe-action-btn:active { color: var(--text); }
 .card-pin-btn {
   background: none; border: none; color: var(--border); cursor: pointer;
   padding: 2px; flex-shrink: 0; display: flex; align-items: center; align-self: flex-start;

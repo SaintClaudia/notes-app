@@ -350,7 +350,16 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
         close();
       }
     },
-    /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", right: 0, top: 0, bottom: 0, width: REVEAL, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 } }, /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-delete", onClick: handleDelete }, Icon.trash), /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-pin", onClick: handlePin }, Icon.pin)),
+    /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: { position: "absolute", right: 0, top: 0, bottom: 0, width: REVEAL, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 },
+        onTouchStart: (e) => e.stopPropagation(),
+        onTouchEnd: (e) => e.stopPropagation()
+      },
+      /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-delete", onClick: handleDelete }, Icon.trash),
+      /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-pin", onClick: handlePin }, Icon.pin)
+    ),
     /* @__PURE__ */ React.createElement(
       "div",
       {

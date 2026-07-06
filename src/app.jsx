@@ -431,7 +431,8 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
     <div ref={cardRef} style={{ position: 'relative', marginBottom: 10 }}
       onTouchStart={onStart} onTouchEnd={onEnd}
       onTouchCancel={() => { active.current = false; close(); }}>
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+        onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
         <button className="swipe-action-btn swipe-delete" onClick={handleDelete}>{Icon.trash}</button>
         <button className="swipe-action-btn swipe-pin" onClick={handlePin}>{Icon.pin}</button>
       </div>
