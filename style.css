@@ -222,7 +222,7 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .privacy-btn:hover { color: var(--text); }
 .privacy-label { font-size: 10.5px; color: var(--muted); }
 .toast {
-  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
   background: #3a3a3c; color: #fff; font-size: 12px; padding: 8px 16px;
   border-radius: 20px; white-space: nowrap; z-index: 100;
   animation: toast-in .15s ease;
