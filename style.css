@@ -12,6 +12,9 @@ html, body { margin: 0; padding: 0; background: #1e1e1e; height: 100%; }
   --mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+button:focus-visible, [role="button"]:focus-visible, [role="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
 #app-root {
   font-family: var(--mono);
   background: var(--bg);
@@ -119,7 +122,7 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .api-key-hint a { color: var(--accent); text-decoration: none; }
 .api-key-hint a:hover { text-decoration: underline; }
 
-.empty-msg { color: var(--muted); font-size: 12px; padding: 6px 2px; }
+.empty-msg { color: var(--muted); font-size: 12px; padding: 6px 2px; background: none; border: none; display: block; width: 100%; text-align: left; }
 
 .note-card {
   background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
@@ -181,7 +184,7 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .fab button svg { width: 20px; height: 20px; }
 
 .bottom-nav { position: sticky; bottom: 0; left: 0; right: 0; background: var(--panel); border-top: 1px solid var(--border); display: flex; padding-bottom: 30px; overflow: visible; }
-.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 0 8px; cursor: pointer; color: var(--muted); }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 0 8px; cursor: pointer; color: var(--muted); background: none; border: none; font: inherit; }
 .bottom-nav .nav-item:first-child { padding-left: 24px; }
 .bottom-nav .nav-item:last-child { padding-right: 24px; }
 .nav-item svg { width: 20px; height: 20px; }
@@ -313,6 +316,7 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .completed-header {
   font-size: 11.5px; color: var(--muted); cursor: pointer; user-select: none;
   padding: 4px 0 8px; letter-spacing: .03em;
+  background: none; border: none; display: block; width: 100%; text-align: left;
 }
 .completed-header:hover { color: var(--text); }
 .block-text-done {

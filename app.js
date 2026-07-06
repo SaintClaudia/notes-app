@@ -95,6 +95,15 @@ function highlightMatches(text, q) {
     (part, i) => words.includes(part.toLowerCase()) ? /* @__PURE__ */ React.createElement("mark", { className: "search-highlight", key: i }, part) : part
   );
 }
+function onKeyActivate(fn) {
+  return (e) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      fn(e);
+    }
+  };
+}
 const Icon = {
   grid: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "13", y: "3", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "3", y: "13", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "13", y: "13", width: "8", height: "8", rx: "1.5" })),
   plus: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "5", x2: "12", y2: "19" }), /* @__PURE__ */ React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" })),
@@ -217,7 +226,7 @@ function App() {
     closeEditor();
     setTab("notes");
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "shell" }, /* @__PURE__ */ React.createElement("div", { className: "screen" }, editingNote ? /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "shell" }, /* @__PURE__ */ React.createElement("main", { className: "screen" }, editingNote ? /* @__PURE__ */ React.createElement(
     Editor,
     {
       note: editingNote,
@@ -237,7 +246,27 @@ function App() {
       storageOk,
       onOpenNote: openNote
     }
-  ) : /* @__PURE__ */ React.createElement(NotesList, { notes, categories, onOpenNote: openNote, onDeleteMany: deleteMany, onPinNote: pinNote })), /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "dashboard" ? " active" : ""), onClick: () => navigate("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus)), /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "notes" ? " active" : ""), onClick: () => navigate("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes"))));
+  ) : /* @__PURE__ */ React.createElement(NotesList, { notes, categories, onOpenNote: openNote, onDeleteMany: deleteMany, onPinNote: pinNote })), /* @__PURE__ */ React.createElement("nav", { className: "bottom-nav", "aria-label": "Primary" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "nav-item" + (!editingNote && tab === "dashboard" ? " active" : ""),
+      onClick: () => navigate("dashboard"),
+      "aria-current": !editingNote && tab === "dashboard" ? "page" : void 0
+    },
+    Icon.grid,
+    /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")
+  ), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "nav-create-btn", "aria-label": "New note" }, Icon.plus)), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "nav-item" + (!editingNote && tab === "notes" ? " active" : ""),
+      onClick: () => navigate("notes"),
+      "aria-current": !editingNote && tab === "notes" ? "page" : void 0
+    },
+    Icon.list,
+    /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes")
+  )));
 }
 function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
@@ -389,17 +418,19 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     }
     return sentences.join(" ");
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "Snapshot")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
-    "div",
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "Snapshot")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
+    "button",
     {
+      type: "button",
       key: b.cat,
       className: "cat-filter-chip" + (activeFilter === b.cat ? " active" : ""),
       style: catCounts.length === 1 ? { gridColumn: "1 / -1" } : {},
-      onClick: () => setActiveFilter(activeFilter === b.cat ? null : b.cat)
+      onClick: () => setActiveFilter(activeFilter === b.cat ? null : b.cat),
+      "aria-pressed": activeFilter === b.cat
     },
     /* @__PURE__ */ React.createElement("div", { className: "num" }, b.count),
     /* @__PURE__ */ React.createElement("div", { className: "label" }, b.cat)
-  ))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "panel-title", style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("h2", null, activeFilter || "recent"), activeFilter && /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setActiveFilter(null), title: "clear filter" }, "\u2715")), filteredNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, activeFilter ? `No notes tagged "${activeFilter}".` : "No notes yet \u2014 tap + to start one."), [...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id), style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, n.private ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Private note"), /* @__PURE__ */ React.createElement("div", { className: "private-snippet" }, Icon.eyeOff, /* @__PURE__ */ React.createElement("span", null, "private"))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSummary(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.tags.map((t) => /* @__PURE__ */ React.createElement("span", { className: "cat-tag", key: t }, t))), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))))))));
+  ))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "panel-title", style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("h2", null, activeFilter || "recent"), activeFilter && /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setActiveFilter(null), title: "clear filter", "aria-label": "Clear filter" }, "\u2715")), filteredNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, activeFilter ? `No notes tagged "${activeFilter}".` : "No notes yet \u2014 tap + to start one."), [...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("button", { type: "button", className: "note-card", key: n.id, onClick: () => onOpenNote(n.id), style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, n.private ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Private note"), /* @__PURE__ */ React.createElement("div", { className: "private-snippet" }, Icon.eyeOff, /* @__PURE__ */ React.createElement("span", null, "private"))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSummary(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.tags.map((t) => /* @__PURE__ */ React.createElement("span", { className: "cat-tag", key: t }, t))), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))))))));
 }
 function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }) {
   const [offsetX, setOffsetX] = useState(0);
@@ -497,8 +528,8 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
         onTouchStart: (e) => e.stopPropagation(),
         onTouchEnd: (e) => e.stopPropagation()
       },
-      /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-delete", onClick: handleDelete }, Icon.trash),
-      /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-pin", onClick: handlePin }, Icon.pin)
+      /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-delete", onClick: handleDelete, "aria-label": "Delete note" }, Icon.trash),
+      /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-pin", onClick: handlePin, "aria-label": pinned ? "Unpin note" : "Pin note" }, Icon.pin)
     ),
     /* @__PURE__ */ React.createElement(
       "div",
@@ -574,21 +605,24 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
       onOpenNote(id);
     }
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes"), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" }, isEditing ? /* @__PURE__ */ React.createElement(React.Fragment, null, selected.size > 0 && /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes"), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" }, isEditing ? /* @__PURE__ */ React.createElement(React.Fragment, null, selected.size > 0 && /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "icon-btn-plain",
       style: { color: "var(--danger)" },
       onClick: handleDelete,
-      title: "delete selected"
+      title: "delete selected",
+      "aria-label": "Delete selected notes"
     },
     Icon.trash
   ), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: exitEdit }, "done")) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setIsEditing(true) }, "edit"))), !isEditing && /* @__PURE__ */ React.createElement("div", { className: "search-box" }, Icon.search, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search notes...", value: q, onChange: (e) => setQ(e.target.value), autoFocus: true })), !isEditing && usedCats.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-chips" }, usedCats.map((cat) => /* @__PURE__ */ React.createElement(
-    "div",
+    "button",
     {
+      type: "button",
       key: cat,
       className: "filter-chip" + (activeFilter === cat ? " active" : ""),
-      onClick: () => setActiveFilter(activeFilter === cat ? null : cat)
+      onClick: () => setActiveFilter(activeFilter === cat ? null : cat),
+      "aria-pressed": activeFilter === cat
     },
     cat
   ))), isEditing && selected.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "bulk-bar" }, selected.size, " selected"), realNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, q || activeFilter ? "No matches." : "No notes yet."), realNotes.map((n) => /* @__PURE__ */ React.createElement(
@@ -605,9 +639,13 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
       {
         className: "note-card" + (isEditing && selected.has(n.id) ? " selected" : ""),
         style: { marginBottom: 0 },
-        onClick: () => handleCardTap(n.id)
+        onClick: () => handleCardTap(n.id),
+        role: isEditing ? "checkbox" : "button",
+        "aria-checked": isEditing ? selected.has(n.id) : void 0,
+        tabIndex: 0,
+        onKeyDown: onKeyActivate(() => handleCardTap(n.id))
       },
-      isEditing && /* @__PURE__ */ React.createElement("div", { className: "select-circle" + (selected.has(n.id) ? " checked" : "") }),
+      isEditing && /* @__PURE__ */ React.createElement("div", { className: "select-circle" + (selected.has(n.id) ? " checked" : ""), "aria-hidden": "true" }),
       /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title ? q.trim() ? highlightMatches(n.title, q) : n.title : "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, q.trim() ? highlightMatches(noteSnippet(n), q) : noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.tags.map((t) => /* @__PURE__ */ React.createElement("span", { className: "cat-tag", key: t }, t))), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))),
       !isEditing && /* @__PURE__ */ React.createElement(
         "button",
@@ -616,12 +654,14 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
           onClick: (e) => {
             e.stopPropagation();
             onPinNote(n.id);
-          }
+          },
+          "aria-label": n.pinned ? "Unpin note" : "Pin note",
+          "aria-pressed": n.pinned
         },
         Icon.pin
       )
     )
-  )), deleteToast !== null && /* @__PURE__ */ React.createElement("div", { className: "toast toast-undo" }, /* @__PURE__ */ React.createElement("span", null, deleteToast === 1 ? "1 note deleted" : `${deleteToast} notes deleted`), /* @__PURE__ */ React.createElement("button", { onClick: handleUndo }, "Undo")));
+  )), deleteToast !== null && /* @__PURE__ */ React.createElement("div", { className: "toast toast-undo", role: "status", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("span", null, deleteToast === 1 ? "1 note deleted" : `${deleteToast} notes deleted`), /* @__PURE__ */ React.createElement("button", { onClick: handleUndo }, "Undo")));
 }
 function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory, onRenameCategory, onDeleteCategory }) {
   const [adding, setAdding] = useState(false);
@@ -685,6 +725,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       className: "cat-new-input",
       autoFocus: true,
       value: editDraft,
+      "aria-label": "Rename category",
       onChange: (e) => setEditDraft(e.target.value),
       onKeyDown: (e) => {
         if (e.key === "Enter") confirmRename();
@@ -698,12 +739,14 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       className: "icon-btn-plain",
       style: { color: "var(--danger)", padding: "2px" },
       onMouseDown: (e) => e.preventDefault(),
-      onClick: () => handleDeleteCat(c)
+      onClick: () => handleDeleteCat(c),
+      "aria-label": `Delete category "${c}"`
     },
     Icon.trash
   )) : /* @__PURE__ */ React.createElement(
-    "div",
+    "button",
     {
+      type: "button",
       key: c,
       className: "cat-pick" + (selected.includes(c) ? " selected" : ""),
       onClick: () => handleChipClick(c),
@@ -712,7 +755,8 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       onMouseLeave: cancelPress,
       onTouchStart: () => startPress(c),
       onTouchEnd: cancelPress,
-      onContextMenu: (e) => e.preventDefault()
+      onContextMenu: (e) => e.preventDefault(),
+      "aria-pressed": selected.includes(c)
     },
     c
   )), adding ? /* @__PURE__ */ React.createElement(
@@ -721,6 +765,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       ref: inputRef,
       className: "cat-new-input",
       placeholder: "Category name",
+      "aria-label": "New category name",
       value: draft,
       onChange: (e) => setDraft(e.target.value),
       onKeyDown: (e) => {
@@ -732,7 +777,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       },
       onBlur: submit
     }
-  ) : /* @__PURE__ */ React.createElement("div", { className: "cat-pick add", onClick: () => setAdding(true) }, "+ new")), (overflows || expanded) && /* @__PURE__ */ React.createElement("button", { className: "cat-show-more", onClick: () => setExpanded((v) => !v) }, expanded ? "show less \u25B4" : "show more \u25BE"));
+  ) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "cat-pick add", onClick: () => setAdding(true) }, "+ new")), (overflows || expanded) && /* @__PURE__ */ React.createElement("button", { className: "cat-show-more", onClick: () => setExpanded((v) => !v) }, expanded ? "show less \u25B4" : "show more \u25BE"));
 }
 function caretAtFirstLine(el) {
   const sel = window.getSelection();
@@ -1001,6 +1046,8 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     "button",
     {
       className: "privacy-btn" + (isPrivate ? " active" : ""),
+      "aria-label": isPrivate ? "Hidden from summary. Tap to make visible." : "Visible in summary. Tap to hide.",
+      "aria-pressed": isPrivate,
       onClick: () => {
         const next = !isPrivate;
         setIsPrivate(next);
@@ -1010,12 +1057,13 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
       }
     },
     isPrivate ? Icon.eyeOff : Icon.eye
-  )), toast && /* @__PURE__ */ React.createElement("div", { className: "toast" }, toast), /* @__PURE__ */ React.createElement(
+  )), toast && /* @__PURE__ */ React.createElement("div", { className: "toast", role: "status", "aria-live": "polite" }, toast), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
       className: "editor-title",
       placeholder: "Title",
+      "aria-label": "Note title",
       value: title,
       onChange: (e) => setTitle(e.target.value)
     }
@@ -1031,12 +1079,26 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     }
   ), /* @__PURE__ */ React.createElement("div", { className: "editor-body", onClick: (e) => {
     if (e.target === e.currentTarget) addBlock();
-  } }, activeBlocks.length === 0 && completedBlocks.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { cursor: "text" }, onClick: addBlock }, "Tap to start writing..."), activeBlocks.map((block) => {
+  } }, activeBlocks.length === 0 && completedBlocks.length === 0 && /* @__PURE__ */ React.createElement("button", { type: "button", className: "empty-msg", style: { cursor: "text" }, onClick: addBlock }, "Tap to start writing..."), activeBlocks.map((block) => {
     const i = blocks.findIndex((b) => b.id === block.id);
     const isBullet = stripHtml(block.text || "").startsWith("\u2022");
-    return /* @__PURE__ */ React.createElement("div", { className: "block-row" + (leaving[block.id] ? " leaving" : ""), key: block.id }, block.type === "check" && /* @__PURE__ */ React.createElement("div", { className: "block-check" + (leaving[block.id] ? " checked" : ""), onClick: () => completeBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement(
+    const textId = "block-text-" + block.id;
+    return /* @__PURE__ */ React.createElement("div", { className: "block-row" + (leaving[block.id] ? " leaving" : ""), key: block.id }, block.type === "check" && /* @__PURE__ */ React.createElement(
       "div",
       {
+        className: "block-check" + (leaving[block.id] ? " checked" : ""),
+        onClick: () => completeBlock(block.id),
+        role: "checkbox",
+        "aria-checked": "false",
+        "aria-labelledby": textId,
+        tabIndex: 0,
+        onKeyDown: onKeyActivate(() => completeBlock(block.id))
+      },
+      Icon.check
+    ), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        id: textId,
         ref: (el) => {
           if (el) {
             refs.current[block.id] = el;
@@ -1049,11 +1111,29 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
         className: "block-text" + (isBullet ? " block-bullet" : ""),
         contentEditable: "true",
         suppressContentEditableWarning: true,
+        role: "textbox",
+        "aria-multiline": "true",
+        "aria-label": block.type === "check" ? "Checklist item" : "Note text",
         onInput: (e) => setBlockHtml(block.id, e.currentTarget.innerHTML, e.currentTarget),
         onKeyDown: (e) => handleBlockKeyDown(e, block, i),
         onPointerUp: handleBlockPointerUp
       }
     ));
-  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done", dangerouslySetInnerHTML: { __html: sanitizeHtml(block.text || "") } }))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar", ref: composerRef }, /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: onSave, title: "save & view notes" }, Icon.send)));
+  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "completed-header", onClick: () => setShowCompleted((v) => !v), "aria-expanded": showCompleted }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => {
+    const doneTextId = "block-text-done-" + block.id;
+    return /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "block-check checked",
+        onClick: () => uncompleteBlock(block.id),
+        role: "checkbox",
+        "aria-checked": "true",
+        "aria-labelledby": doneTextId,
+        tabIndex: 0,
+        onKeyDown: onKeyActivate(() => uncompleteBlock(block.id))
+      },
+      Icon.check
+    ), /* @__PURE__ */ React.createElement("div", { id: doneTextId, className: "block-text block-text-done", dangerouslySetInnerHTML: { __html: sanitizeHtml(block.text || "") } }));
+  }))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar", ref: composerRef }, /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: onSave, title: "save & view notes", "aria-label": "Save and view notes" }, Icon.send)));
 }
 ReactDOM.createRoot(document.getElementById("app-root")).render(/* @__PURE__ */ React.createElement(App, null));

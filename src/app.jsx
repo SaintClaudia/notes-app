@@ -103,6 +103,20 @@ function highlightMatches(text, q) {
   );
 }
 
+// Lets a custom role="button"/role="checkbox" element (a <div>, not a real <button>)
+// respond to Enter/Space the same way native controls do. Ignores events bubbled up
+// from a focusable descendant (e.g. a real <button> nested inside a card) so activating
+// that child control doesn't also fire the container's own action.
+function onKeyActivate(fn) {
+  return e => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      fn(e);
+    }
+  };
+}
+
 /* ---------- icons ---------- */
 const Icon = {
   grid: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>,
@@ -232,7 +246,7 @@ function App() {
 
   return (
     <div className="shell">
-      <div className="screen">
+      <main className="screen">
         {editingNote ? (
           <Editor note={editingNote} categories={categories}
             onChange={patch => updateNote(editingNote.id, patch)}
@@ -247,19 +261,21 @@ function App() {
         ) : (
           <NotesList notes={notes} categories={categories} onOpenNote={openNote} onDeleteMany={deleteMany} onPinNote={pinNote} />
         )}
-      </div>
+      </main>
 
-      <div className="bottom-nav">
-        <div className={'nav-item' + (!editingNote && tab === 'dashboard' ? ' active' : '')} onClick={() => navigate('dashboard')}>
+      <nav className="bottom-nav" aria-label="Primary">
+        <button type="button" className={'nav-item' + (!editingNote && tab === 'dashboard' ? ' active' : '')}
+          onClick={() => navigate('dashboard')} aria-current={!editingNote && tab === 'dashboard' ? 'page' : undefined}>
           {Icon.grid}<span className="nav-label">dashboard</span>
-        </div>
+        </button>
         <div className="nav-item" onClick={openNewNote}>
-          <button className="nav-create-btn">{Icon.plus}</button>
+          <button type="button" className="nav-create-btn" aria-label="New note">{Icon.plus}</button>
         </div>
-        <div className={'nav-item' + (!editingNote && tab === 'notes' ? ' active' : '')} onClick={() => navigate('notes')}>
+        <button type="button" className={'nav-item' + (!editingNote && tab === 'notes' ? ' active' : '')}
+          onClick={() => navigate('notes')} aria-current={!editingNote && tab === 'notes' ? 'page' : undefined}>
           {Icon.list}<span className="nav-label">notes</span>
-        </div>
-      </div>
+        </button>
+      </nav>
     </div>
   );
 }
@@ -457,9 +473,9 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 
   return (
     <div>
-      <div className="topbar">
+      <header className="topbar">
         <div className="brand"><span className="dot"></span>notes</div>
-      </div>
+      </header>
       {!storageOk && <div className="empty-msg" style={{ color: 'var(--danger)' }}>storage error — changes may not save</div>}
 
       <div className="summary-section">
@@ -474,15 +490,17 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
       {catCounts.length > 0 && (
         <div className="cat-filter-grid">
           {catCounts.map(b => (
-            <div
+            <button
+              type="button"
               key={b.cat}
               className={'cat-filter-chip' + (activeFilter === b.cat ? ' active' : '')}
               style={catCounts.length === 1 ? { gridColumn: '1 / -1' } : {}}
               onClick={() => setActiveFilter(activeFilter === b.cat ? null : b.cat)}
+              aria-pressed={activeFilter === b.cat}
             >
               <div className="num">{b.count}</div>
               <div className="label">{b.cat}</div>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -491,14 +509,14 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
         <div className="panel-title" style={{ marginBottom: 10 }}>
           <h2>{activeFilter || 'recent'}</h2>
           {activeFilter && (
-            <button className="icon-btn-plain" onClick={() => setActiveFilter(null)} title="clear filter">✕</button>
+            <button className="icon-btn-plain" onClick={() => setActiveFilter(null)} title="clear filter" aria-label="Clear filter">✕</button>
           )}
         </div>
         {filteredNotes.length === 0 && (
           <div className="empty-msg">{activeFilter ? `No notes tagged "${activeFilter}".` : 'No notes yet — tap + to start one.'}</div>
         )}
         {[...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map(n => (
-          <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)} style={{ marginBottom: 8 }}>
+          <button type="button" className="note-card" key={n.id} onClick={() => onOpenNote(n.id)} style={{ marginBottom: 8 }}>
             <div className="note-card-body">
               {n.private ? (
                 <>
@@ -518,7 +536,7 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
                 </>
               )}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -607,8 +625,8 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
       {actionsVisible && (
         <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
           onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
-          <button className="swipe-action-btn swipe-delete" onClick={handleDelete}>{Icon.trash}</button>
-          <button className="swipe-action-btn swipe-pin" onClick={handlePin}>{Icon.pin}</button>
+          <button className="swipe-action-btn swipe-delete" onClick={handleDelete} aria-label="Delete note">{Icon.trash}</button>
+          <button className="swipe-action-btn swipe-pin" onClick={handlePin} aria-label={pinned ? 'Unpin note' : 'Pin note'}>{Icon.pin}</button>
         </div>
       )}
       <div className={'swipe-inner' + (swiped ? ' swiped' : '')}
@@ -689,14 +707,14 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
 
   return (
     <div>
-      <div className="topbar">
+      <header className="topbar">
         <div className="brand"><span className="dot"></span>notes</div>
         <div className="topbar-actions">
           {isEditing ? (
             <>
               {selected.size > 0 && (
                 <button className="icon-btn-plain" style={{ color: 'var(--danger)' }}
-                  onClick={handleDelete} title="delete selected">
+                  onClick={handleDelete} title="delete selected" aria-label="Delete selected notes">
                   {Icon.trash}
                 </button>
               )}
@@ -706,7 +724,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
             <button className="icon-btn-plain" onClick={() => setIsEditing(true)}>edit</button>
           )}
         </div>
-      </div>
+      </header>
       {!isEditing && (
         <div className="search-box">
           {Icon.search}
@@ -716,10 +734,10 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
       {!isEditing && usedCats.length > 0 && (
         <div className="filter-chips">
           {usedCats.map(cat => (
-            <div key={cat} className={'filter-chip' + (activeFilter === cat ? ' active' : '')}
-              onClick={() => setActiveFilter(activeFilter === cat ? null : cat)}>
+            <button type="button" key={cat} className={'filter-chip' + (activeFilter === cat ? ' active' : '')}
+              onClick={() => setActiveFilter(activeFilter === cat ? null : cat)} aria-pressed={activeFilter === cat}>
               {cat}
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -734,9 +752,13 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
           onSwipeDelete={() => handleSwipeDelete(n.id)}
           onSwipePin={() => onPinNote(n.id)}>
           <div className={'note-card' + (isEditing && selected.has(n.id) ? ' selected' : '')}
-            style={{ marginBottom: 0 }} onClick={() => handleCardTap(n.id)}>
+            style={{ marginBottom: 0 }} onClick={() => handleCardTap(n.id)}
+            role={isEditing ? 'checkbox' : 'button'}
+            aria-checked={isEditing ? selected.has(n.id) : undefined}
+            tabIndex={0}
+            onKeyDown={onKeyActivate(() => handleCardTap(n.id))}>
             {isEditing && (
-              <div className={'select-circle' + (selected.has(n.id) ? ' checked' : '')} />
+              <div className={'select-circle' + (selected.has(n.id) ? ' checked' : '')} aria-hidden="true" />
             )}
             <div className="note-card-body">
               <div className="title">{n.title ? (q.trim() ? highlightMatches(n.title, q) : n.title) : 'Untitled'}</div>
@@ -750,7 +772,8 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
             </div>
             {!isEditing && (
               <button className={'card-pin-btn' + (n.pinned ? ' pinned' : '')}
-                onClick={e => { e.stopPropagation(); onPinNote(n.id); }}>
+                onClick={e => { e.stopPropagation(); onPinNote(n.id); }}
+                aria-label={n.pinned ? 'Unpin note' : 'Pin note'} aria-pressed={n.pinned}>
                 {Icon.pin}
               </button>
             )}
@@ -758,7 +781,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
         </SwipeableCard>
       ))}
       {deleteToast !== null && (
-        <div className="toast toast-undo">
+        <div className="toast toast-undo" role="status" aria-live="polite">
           <span>{deleteToast === 1 ? '1 note deleted' : `${deleteToast} notes deleted`}</span>
           <button onClick={handleUndo}>Undo</button>
         </div>
@@ -832,36 +855,38 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       {categories.map(c => (
         editingCat === c ? (
           <div key={c} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <input className="cat-new-input" autoFocus value={editDraft}
+            <input className="cat-new-input" autoFocus value={editDraft} aria-label="Rename category"
               onChange={e => setEditDraft(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setEditingCat(null); }}
               onBlur={confirmRename} />
             <button className="icon-btn-plain" style={{ color: 'var(--danger)', padding: '2px' }}
               onMouseDown={e => e.preventDefault()}
-              onClick={() => handleDeleteCat(c)}>
+              onClick={() => handleDeleteCat(c)}
+              aria-label={`Delete category "${c}"`}>
               {Icon.trash}
             </button>
           </div>
         ) : (
-          <div key={c} className={'cat-pick' + (selected.includes(c) ? ' selected' : '')}
+          <button type="button" key={c} className={'cat-pick' + (selected.includes(c) ? ' selected' : '')}
             onClick={() => handleChipClick(c)}
             onMouseDown={() => startPress(c)}
             onMouseUp={cancelPress}
             onMouseLeave={cancelPress}
             onTouchStart={() => startPress(c)}
             onTouchEnd={cancelPress}
-            onContextMenu={e => e.preventDefault()}>
+            onContextMenu={e => e.preventDefault()}
+            aria-pressed={selected.includes(c)}>
             {c}
-          </div>
+          </button>
         )
       ))}
       {adding ? (
-        <input ref={inputRef} className="cat-new-input" placeholder="Category name" value={draft}
+        <input ref={inputRef} className="cat-new-input" placeholder="Category name" aria-label="New category name" value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setAdding(false); setDraft(''); } }}
           onBlur={submit} />
       ) : (
-        <div className="cat-pick add" onClick={() => setAdding(true)}>+ new</div>
+        <button type="button" className="cat-pick add" onClick={() => setAdding(true)}>+ new</button>
       )}
     </div>
     {(overflows || expanded) && (
@@ -1129,6 +1154,8 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
 
       <div className="editor-header">
         <button className={'privacy-btn' + (isPrivate ? ' active' : '')}
+          aria-label={isPrivate ? 'Hidden from summary. Tap to make visible.' : 'Visible in summary. Tap to hide.'}
+          aria-pressed={isPrivate}
           onClick={() => {
             const next = !isPrivate;
             setIsPrivate(next);
@@ -1139,9 +1166,9 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
           {isPrivate ? Icon.eyeOff : Icon.eye}
         </button>
       </div>
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div className="toast" role="status" aria-live="polite">{toast}</div>}
 
-      <input type="text" className="editor-title" placeholder="Title"
+      <input type="text" className="editor-title" placeholder="Title" aria-label="Note title"
         value={title} onChange={e => setTitle(e.target.value)} />
 
       <CategoryPicker categories={categories} selected={tags} onSelectedChange={setTags}
@@ -1149,19 +1176,24 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
 
       <div className="editor-body" onClick={e => { if (e.target === e.currentTarget) addBlock(); }}>
         {activeBlocks.length === 0 && completedBlocks.length === 0 && (
-          <div className="empty-msg" style={{ cursor: 'text' }} onClick={addBlock}>Tap to start writing...</div>
+          <button type="button" className="empty-msg" style={{ cursor: 'text' }} onClick={addBlock}>Tap to start writing...</button>
         )}
         {activeBlocks.map(block => {
           const i = blocks.findIndex(b => b.id === block.id);
           const isBullet = stripHtml(block.text || '').startsWith('•');
+          const textId = 'block-text-' + block.id;
           return (
             <div className={'block-row' + (leaving[block.id] ? ' leaving' : '')} key={block.id}>
               {block.type === 'check' && (
-                <div className={'block-check' + (leaving[block.id] ? ' checked' : '')} onClick={() => completeBlock(block.id)}>
+                <div className={'block-check' + (leaving[block.id] ? ' checked' : '')}
+                  onClick={() => completeBlock(block.id)}
+                  role="checkbox" aria-checked="false" aria-labelledby={textId} tabIndex={0}
+                  onKeyDown={onKeyActivate(() => completeBlock(block.id))}>
                   {Icon.check}
                 </div>
               )}
               <div
+                id={textId}
                 ref={el => {
                   if (el) {
                     refs.current[block.id] = el;
@@ -1172,6 +1204,9 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
                 className={'block-text' + (isBullet ? ' block-bullet' : '')}
                 contentEditable="true"
                 suppressContentEditableWarning={true}
+                role="textbox"
+                aria-multiline="true"
+                aria-label={block.type === 'check' ? 'Checklist item' : 'Note text'}
                 onInput={e => setBlockHtml(block.id, e.currentTarget.innerHTML, e.currentTarget)}
                 onKeyDown={e => handleBlockKeyDown(e, block, i)}
                 onPointerUp={handleBlockPointerUp}
@@ -1181,23 +1216,28 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
         })}
         {completedBlocks.length > 0 && (
           <div className="completed-section">
-            <div className="completed-header" onClick={() => setShowCompleted(v => !v)}>
+            <button type="button" className="completed-header" onClick={() => setShowCompleted(v => !v)} aria-expanded={showCompleted}>
               {showCompleted ? '▾' : '▸'} Completed ({completedBlocks.length})
-            </div>
-            {showCompleted && completedBlocks.map(block => (
-              <div className="block-row" key={block.id}>
-                <div className="block-check checked" onClick={() => uncompleteBlock(block.id)}>
-                  {Icon.check}
+            </button>
+            {showCompleted && completedBlocks.map(block => {
+              const doneTextId = 'block-text-done-' + block.id;
+              return (
+                <div className="block-row" key={block.id}>
+                  <div className="block-check checked" onClick={() => uncompleteBlock(block.id)}
+                    role="checkbox" aria-checked="true" aria-labelledby={doneTextId} tabIndex={0}
+                    onKeyDown={onKeyActivate(() => uncompleteBlock(block.id))}>
+                    {Icon.check}
+                  </div>
+                  <div id={doneTextId} className="block-text block-text-done" dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.text || '') }} />
                 </div>
-                <div className="block-text block-text-done" dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.text || '') }} />
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       <div className="compose-bar" ref={composerRef}>
-        <button className="send-btn" onClick={onSave} title="save & view notes">
+        <button className="send-btn" onClick={onSave} title="save & view notes" aria-label="Save and view notes">
           {Icon.send}
         </button>
       </div>
