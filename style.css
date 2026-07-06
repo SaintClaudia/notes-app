@@ -319,6 +319,18 @@ input[type=password]::placeholder { color: #5a5a5a; }
 
 @media (min-width: 900px) {
   .shell { max-width: none; }
-  .screen { padding: 28px 48px 90px; }
+  .screen { padding: 28px 48px 120px; }
   .compose-bar { right: 32px; }
+  .bottom-nav {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 24px;
+    width: 440px;
+    border-radius: 28px;
+    border-top: none;
+    border: 1px solid var(--border);
+    padding-bottom: 0;
+    overflow: visible;
+  }
 }
