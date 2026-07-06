@@ -251,39 +251,62 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     if (visible.length === 0) return 'All notes are set to private.';
 
     const sorted = [...visible].sort((a, b) => b.updatedAt - a.updatedAt);
-    const tasks = visible.flatMap(n =>
-      n.blocks.filter(b => b.type === 'check' && !b.done && stripHtml(b.text).trim())
-    ).map(b => stripHtml(b.text).trim());
+    const usedCats = [...new Set(visible.map(n => n.category).filter(Boolean))];
+    const allActive = visible.flatMap(n => n.blocks.filter(b => b.type === 'check' && !b.done && stripHtml(b.text).trim()));
+    const allDone = visible.flatMap(n => n.blocks.filter(b => b.type === 'check' && b.done && stripHtml(b.text).trim()));
 
-    function noteTitle(n) {
-      return n.title?.trim() || stripHtml(n.blocks.find(b => stripHtml(b.text).trim())?.text || '') || 'an untitled note';
-    }
-    function noteDesc(n) {
-      const title = n.title?.trim();
-      const first = stripHtml(n.blocks.find(b => !b.done && stripHtml(b.text).trim())?.text || '').trim();
-      if (title && first) return `${title} — ${first}`;
-      return title || first || 'an untitled note';
+    function label(n) {
+      if (n.title?.trim()) return `"${n.title.trim()}"`;
+      const first = n.blocks.find(b => !b.done && stripHtml(b.text).trim());
+      const t = first ? stripHtml(first.text).trim() : '';
+      return t ? `"${t.length > 40 ? t.slice(0, 40) + '…' : t}"` : 'Untitled';
     }
 
-    const [recent, ...rest] = sorted;
+    function detail(n) {
+      const active = n.blocks.filter(b => b.type === 'check' && !b.done && stripHtml(b.text).trim());
+      const done = n.blocks.filter(b => b.type === 'check' && b.done && stripHtml(b.text).trim());
+      const total = active.length + done.length;
+      if (total > 0) {
+        if (active.length === 0) return `all ${total} done`;
+        if (done.length === 0) return `${active.length} task${active.length !== 1 ? 's' : ''} to do`;
+        return `${done.length} of ${total} tasks done`;
+      }
+      const texts = n.blocks.filter(b => b.type === 'text' && !b.done && stripHtml(b.text).trim());
+      if (texts.length === 0) return null;
+      const allText = texts.map(b => stripHtml(b.text).trim()).join(' ');
+      const words = allText.split(/\s+/);
+      return words.slice(0, 10).join(' ') + (words.length > 10 ? '…' : '');
+    }
+
     const parts = [];
 
-    parts.push(`You were last working on ${noteDesc(recent)}.`);
-
-    if (rest.length === 1) {
-      parts.push(`You also have ${noteTitle(rest[0])}.`);
-    } else if (rest.length === 2) {
-      parts.push(`You also have ${noteTitle(rest[0])} and ${noteTitle(rest[1])}.`);
-    } else if (rest.length > 2) {
-      parts.push(`You also have ${noteTitle(rest[0])}, ${noteTitle(rest[1])}, and ${rest.length - 2} more.`);
+    if (usedCats.length > 1) {
+      const catStr = usedCats.map(cat => {
+        const count = visible.filter(n => n.category === cat).length;
+        return `${count} ${cat}`;
+      }).join(', ');
+      parts.push(`${visible.length} note${visible.length !== 1 ? 's' : ''} — ${catStr}.`);
+    } else if (usedCats.length === 1) {
+      parts.push(`${visible.length} note${visible.length !== 1 ? 's' : ''} in ${usedCats[0]}.`);
+    } else {
+      parts.push(`${visible.length} note${visible.length !== 1 ? 's' : ''}.`);
     }
 
-    if (tasks.length === 1) {
-      parts.push(`Still to do: ${tasks[0]}.`);
-    } else if (tasks.length === 2) {
-      parts.push(`Still to do: ${tasks[0]} and ${tasks[1]}.`);
-    } else if (tasks.length >= 3) {
-      parts.push(`Still to do: ${tasks.slice(0, 2).join(', ')}, and ${tasks.length - 2} more.`);
+    sorted.slice(0, 6).forEach(n => {
+      const d = detail(n);
+      parts.push(d ? `${label(n)}: ${d}.` : `${label(n)}.`);
+    });
+    if (sorted.length > 6) parts.push(`...and ${sorted.length - 6} more.`);
+
+    if (allActive.length + allDone.length > 0) {
+      if (allActive.length === 0) {
+        parts.push(`All tasks complete.`);
+      } else if (allActive.length === 1) {
+        parts.push(`Still to do: ${stripHtml(allActive[0].text).trim()}.`);
+      } else {
+        const top = allActive.slice(0, 2).map(b => stripHtml(b.text).trim()).join(', ');
+        parts.push(`${allActive.length} tasks open: ${top}${allActive.length > 2 ? `, and ${allActive.length - 2} more` : ''}.`);
+      }
     }
 
     return parts.join(' ');
