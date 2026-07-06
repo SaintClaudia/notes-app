@@ -726,7 +726,6 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
               <div className="snippet">{noteSnippet(n)}</div>
               <div className="meta-row">
                 <span className="meta">
-                  {new Date(n.updatedAt).toLocaleDateString()}
                   {n.tags.map(t => <span className="cat-tag" key={t}>{t}</span>)}
                 </span>
                 {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
