@@ -19,7 +19,7 @@ const storageAdapter = {
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function newBlock(type = 'text', text = '') { return { id: uid(), type, text }; }
-function newNote() { return { id: uid(), title: '', category: '', archived: false, private: false, blocks: [], updatedAt: Date.now() }; }
+function newNote() { return { id: uid(), title: '', category: '', archived: false, private: false, pinned: false, blocks: [], updatedAt: Date.now() }; }
 
 function isNoteEmpty(n) {
   if (n.title && n.title.trim()) return false;
@@ -54,6 +54,7 @@ const Icon = {
   search: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   mic: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>,
   send: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>,
+  pin: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>,
   key: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="8" cy="15" r="5"/><line x1="13" y1="10" x2="22" y2="10"/><line x1="19" y1="10" x2="19" y2="13"/></svg>,
   refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
   eye: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
@@ -135,6 +136,7 @@ function App() {
 
   function deleteNote(id) { persist(notes.filter(n => n.id !== id)); setEditingId(null); }
   function deleteMany(ids) { persist(notes.filter(n => !ids.has(n.id))); }
+  function pinNote(id) { persist(notes.map(n => n.id === id ? { ...n, pinned: !n.pinned } : n)); }
 
   function addCategory(name) {
     const clean = name.trim();
@@ -182,7 +184,7 @@ function App() {
           <Dashboard notes={notes} categories={categories} storageOk={storageOk}
             onOpenNote={openNote} />
         ) : (
-          <NotesList notes={notes} categories={categories} onOpenNote={openNote} onDeleteMany={deleteMany} />
+          <NotesList notes={notes} categories={categories} onOpenNote={openNote} onDeleteMany={deleteMany} onPinNote={pinNote} />
         )}
       </div>
 
@@ -323,8 +325,84 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   );
 }
 
+/* ---------- Swipeable card ---------- */
+function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }) {
+  const [offsetX, setOffsetX] = useState(0);
+  const [snap, setSnap] = useState(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const active = useRef(false);
+  const horiz = useRef(false);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    function onMove(e) {
+      if (!active.current || disabled) return;
+      const dx = e.touches[0].clientX - startX.current;
+      const dy = e.touches[0].clientY - startY.current;
+      if (!horiz.current) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        if (Math.abs(dx) >= Math.abs(dy)) { horiz.current = true; } else { active.current = false; return; }
+      }
+      e.preventDefault();
+      let x = dx;
+      if (x < -110) x = -110 - (x + 110) * 0.15;
+      if (x > 90) x = 90 + (x - 90) * 0.15;
+      setSnap(false);
+      setOffsetX(x);
+    }
+    el.addEventListener('touchmove', onMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onMove);
+  }, [disabled]);
+
+  function onStart(e) {
+    if (disabled) return;
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    active.current = true;
+    horiz.current = false;
+    setSnap(false);
+  }
+
+  function onEnd() {
+    if (!active.current) return;
+    active.current = false;
+    setSnap(true);
+    if (offsetX < -80) {
+      setOffsetX(-500);
+      setTimeout(() => { setOffsetX(0); setSnap(false); onSwipeDelete(); }, 220);
+    } else if (offsetX > 60) {
+      setOffsetX(0);
+      onSwipePin();
+    } else {
+      setOffsetX(0);
+    }
+  }
+
+  const delReveal = Math.min(1, Math.max(0, -offsetX / 80));
+  const pinReveal = Math.min(1, Math.max(0, offsetX / 60));
+
+  return (
+    <div ref={cardRef} style={{ position: 'relative', marginBottom: 10, borderRadius: 6, overflow: 'hidden' }}
+      onTouchStart={onStart} onTouchEnd={onEnd}
+      onTouchCancel={() => { active.current = false; setSnap(true); setOffsetX(0); }}>
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 72, background: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: delReveal, color: '#fff' }}>
+        {Icon.trash}
+      </div>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 72, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: pinReveal, color: '#fff' }}>
+        {Icon.pin}
+      </div>
+      <div style={{ transform: `translateX(${offsetX}px)`, transition: snap ? 'transform .2s ease' : 'none', willChange: 'transform' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Notes list ---------- */
-function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
+function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
   const [q, setQ] = useState('');
   const [activeFilter, setActiveFilter] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -337,7 +415,11 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
   const usedCats = categories.filter(cat => allReal.some(n => n.category === cat));
   const realNotes = allReal
     .filter(n => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return b.updatedAt - a.updatedAt;
+    });
 
   function toggleSelect(id) {
     setSelected(prev => {
@@ -348,6 +430,19 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
   }
 
   function exitEdit() { setIsEditing(false); setSelected(new Set()); }
+
+  function handleSwipeDelete(id) {
+    clearTimeout(deleteTimer.current);
+    if (pendingDelete.size > 0) onDeleteMany(pendingDelete);
+    const ids = new Set([id]);
+    setPendingDelete(ids);
+    setDeleteToast(1);
+    deleteTimer.current = setTimeout(() => {
+      onDeleteMany(ids);
+      setPendingDelete(new Set());
+      setDeleteToast(null);
+    }, 3000);
+  }
 
   function handleDelete() {
     const ids = new Set(selected);
@@ -416,23 +511,30 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
       )}
       {realNotes.length === 0 && <div className="empty-msg">{q || activeFilter ? 'No matches.' : 'No notes yet.'}</div>}
       {realNotes.map(n => (
-        <div className={'note-card' + (isEditing && selected.has(n.id) ? ' selected' : '')}
-          key={n.id} onClick={() => handleCardTap(n.id)}>
-          {isEditing && (
-            <div className={'select-circle' + (selected.has(n.id) ? ' checked' : '')} />
-          )}
-          <div className="note-card-body">
-            <div className="title">{n.title || 'Untitled'}</div>
-            <div className="snippet">{noteSnippet(n)}</div>
-            <div className="meta-row">
-              <span className="meta">
-                {new Date(n.updatedAt).toLocaleDateString()}
-                {n.category && <span className="cat-tag">{n.category}</span>}
-              </span>
-              {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
+        <SwipeableCard key={n.id} disabled={isEditing} pinned={n.pinned}
+          onSwipeDelete={() => handleSwipeDelete(n.id)}
+          onSwipePin={() => onPinNote(n.id)}>
+          <div className={'note-card' + (isEditing && selected.has(n.id) ? ' selected' : '')}
+            style={{ marginBottom: 0 }} onClick={() => handleCardTap(n.id)}>
+            {isEditing && (
+              <div className={'select-circle' + (selected.has(n.id) ? ' checked' : '')} />
+            )}
+            <div className="note-card-body">
+              <div className="title">
+                {n.pinned && <span className="pin-badge">{Icon.pin}</span>}
+                {n.title || 'Untitled'}
+              </div>
+              <div className="snippet">{noteSnippet(n)}</div>
+              <div className="meta-row">
+                <span className="meta">
+                  {new Date(n.updatedAt).toLocaleDateString()}
+                  {n.category && <span className="cat-tag">{n.category}</span>}
+                </span>
+                {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
+              </div>
             </div>
           </div>
-        </div>
+        </SwipeableCard>
       ))}
       {deleteToast !== null && (
         <div className="toast toast-undo">
