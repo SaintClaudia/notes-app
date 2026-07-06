@@ -316,8 +316,8 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
         </div>
       )}
 
-      <div className="panel">
-        <div className="panel-title">
+      <div>
+        <div className="panel-title" style={{ marginBottom: 10 }}>
           <h2>{activeFilter || 'recent'}</h2>
           {activeFilter && (
             <button className="icon-btn-plain" onClick={() => setActiveFilter(null)} title="clear filter">✕</button>
