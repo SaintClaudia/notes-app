@@ -54,7 +54,7 @@ const Icon = {
   restore: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M3 12a9 9 0 1 0 3-6.7" }), /* @__PURE__ */ React.createElement("polyline", { points: "3 4 3 9 8 9" })),
   search: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })),
   mic: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("rect", { x: "9", y: "2", width: "6", height: "12", rx: "3" }), /* @__PURE__ */ React.createElement("path", { d: "M5 10v1a7 7 0 0 0 14 0v-1" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "18", x2: "12", y2: "22" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "22", x2: "16", y2: "22" })),
-  send: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "19", x2: "12", y2: "5" }), /* @__PURE__ */ React.createElement("polyline", { points: "6 11 12 5 18 11" })),
+  send: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" }), /* @__PURE__ */ React.createElement("polyline", { points: "13 6 19 12 13 18" })),
   key: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("circle", { cx: "8", cy: "15", r: "5" }), /* @__PURE__ */ React.createElement("line", { x1: "13", y1: "10", x2: "22", y2: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "19", y1: "10", x2: "19", y2: "13" })),
   refresh: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("polyline", { points: "23 4 23 10 17 10" }), /* @__PURE__ */ React.createElement("path", { d: "M20.49 15a9 9 0 1 1-2.12-9.36L23 10" }))
 };
@@ -286,13 +286,9 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
   const [category, setCategory] = useState(note.category || "");
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
-  const [isListening, setIsListening] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const refs = useRef({});
-  const recognitionRef = useRef(null);
   const composerRef = useRef(null);
-  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const micSupported = !!SpeechRecognitionCtor;
   useEffect(() => {
     onChange({ title, blocks, category });
   }, [title, blocks, category]);
@@ -311,16 +307,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
       setFocusTarget(null);
     }
   }, [focusTarget, blocks]);
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-        }
-      }
-    };
-  }, []);
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -399,36 +385,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
       }
     }
   }
-  function toggleMic() {
-    if (!micSupported) return;
-    if (isListening) {
-      if (recognitionRef.current) recognitionRef.current.stop();
-      return;
-    }
-    const recog = new SpeechRecognitionCtor();
-    recog.continuous = true;
-    recog.interimResults = false;
-    recog.lang = navigator.language || "en-US";
-    let accumulated = "";
-    recog.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) accumulated += (accumulated ? " " : "") + e.results[i][0].transcript;
-      }
-    };
-    recog.onerror = () => setIsListening(false);
-    recog.onend = () => {
-      setIsListening(false);
-      if (!accumulated.trim()) return;
-      const additions = accumulated.split("\n").filter((l) => l.trim()).map((line) => {
-        const t = line.replace(/^\s+/, "");
-        return t.startsWith("- ") ? newBlock("check", t.slice(2)) : newBlock("text", line);
-      });
-      if (additions.length) setBlocks((prev) => [...prev, ...additions]);
-    };
-    recognitionRef.current = recog;
-    recog.start();
-    setIsListening(true);
-  }
   const activeBlocks = blocks.filter((b) => !b.done);
   const completedBlocks = blocks.filter((b) => b.done);
   return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onBack }, Icon.back), note.archived ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onRestore, title: "restore" }, Icon.restore), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onDeleteForever, title: "delete forever" }, Icon.trash)) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onArchive, title: "archive" }, Icon.archive)), /* @__PURE__ */ React.createElement(
@@ -464,14 +420,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
         onKeyDown: (e) => handleBlockKeyDown(e, block, i)
       }
     ));
-  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done" }, block.text))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar", ref: composerRef }, isListening && /* @__PURE__ */ React.createElement("span", { className: "listening-label" }, "listening\u2026"), micSupported && /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      className: "mic-btn" + (isListening ? " listening" : ""),
-      onClick: toggleMic,
-      title: isListening ? "stop dictation" : "dictate"
-    },
-    Icon.mic
-  ), /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: onSave, title: "save & view notes" }, Icon.send)));
+  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done" }, block.text))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar", ref: composerRef }, /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: onSave, title: "save & view notes" }, Icon.send)));
 }
 ReactDOM.createRoot(document.getElementById("app-root")).render(/* @__PURE__ */ React.createElement(App, null));

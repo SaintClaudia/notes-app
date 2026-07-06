@@ -53,7 +53,7 @@ const Icon = {
   restore: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>,
   search: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   mic: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>,
-  send: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>,
+  send: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>,
   key: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="8" cy="15" r="5"/><line x1="13" y1="10" x2="22" y2="10"/><line x1="19" y1="10" x2="19" y2="13"/></svg>,
   refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
 };
@@ -407,14 +407,9 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
   const [category, setCategory] = useState(note.category || '');
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
-  const [isListening, setIsListening] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const refs = useRef({});
-  const recognitionRef = useRef(null);
   const composerRef = useRef(null);
-
-  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const micSupported = !!SpeechRecognitionCtor;
 
   useEffect(() => { onChange({ title, blocks, category }); }, [title, blocks, category]);
   useLayoutEffect(() => { Object.values(refs.current).forEach(autoGrow); }, [blocks]);
@@ -428,10 +423,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
       setFocusTarget(null);
     }
   }, [focusTarget, blocks]);
-
-  useEffect(() => {
-    return () => { if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch (e) {} } };
-  }, []);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -511,34 +502,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
     }
   }
 
-  function toggleMic() {
-    if (!micSupported) return;
-    if (isListening) { if (recognitionRef.current) recognitionRef.current.stop(); return; }
-    const recog = new SpeechRecognitionCtor();
-    recog.continuous = true;
-    recog.interimResults = false;
-    recog.lang = navigator.language || 'en-US';
-    let accumulated = '';
-    recog.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) accumulated += (accumulated ? ' ' : '') + e.results[i][0].transcript;
-      }
-    };
-    recog.onerror = () => setIsListening(false);
-    recog.onend = () => {
-      setIsListening(false);
-      if (!accumulated.trim()) return;
-      const additions = accumulated.split('\n').filter(l => l.trim()).map(line => {
-        const t = line.replace(/^\s+/, '');
-        return t.startsWith('- ') ? newBlock('check', t.slice(2)) : newBlock('text', line);
-      });
-      if (additions.length) setBlocks(prev => [...prev, ...additions]);
-    };
-    recognitionRef.current = recog;
-    recog.start();
-    setIsListening(true);
-  }
-
   const activeBlocks = blocks.filter(b => !b.done);
   const completedBlocks = blocks.filter(b => b.done);
 
@@ -605,13 +568,6 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
       </div>
 
       <div className="compose-bar" ref={composerRef}>
-        {isListening && <span className="listening-label">listening…</span>}
-        {micSupported && (
-          <button className={'mic-btn' + (isListening ? ' listening' : '')} onClick={toggleMic}
-            title={isListening ? 'stop dictation' : 'dictate'}>
-            {Icon.mic}
-          </button>
-        )}
         <button className="send-btn" onClick={onSave} title="save & view notes">
           {Icon.send}
         </button>
