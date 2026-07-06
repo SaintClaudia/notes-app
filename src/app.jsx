@@ -873,6 +873,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
         )}
         {activeBlocks.map(block => {
           const i = blocks.findIndex(b => b.id === block.id);
+          const isBullet = stripHtml(block.text || '').startsWith('•');
           return (
             <div className={'block-row' + (leaving[block.id] ? ' leaving' : '')} key={block.id}>
               {block.type === 'check' && (
@@ -888,7 +889,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
                     if (cur !== (block.text || '')) el.innerHTML = block.text || '';
                   } else { delete refs.current[block.id]; }
                 }}
-                className="block-text"
+                className={'block-text' + (isBullet ? ' block-bullet' : '')}
                 contentEditable="true"
                 suppressContentEditableWarning={true}
                 onInput={e => setBlockHtml(block.id, e.currentTarget.innerHTML, e.currentTarget)}

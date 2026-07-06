@@ -790,6 +790,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     if (e.target === e.currentTarget) addBlock();
   } }, activeBlocks.length === 0 && completedBlocks.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { cursor: "text" }, onClick: addBlock }, "Tap to start writing..."), activeBlocks.map((block) => {
     const i = blocks.findIndex((b) => b.id === block.id);
+    const isBullet = stripHtml(block.text || "").startsWith("\u2022");
     return /* @__PURE__ */ React.createElement("div", { className: "block-row" + (leaving[block.id] ? " leaving" : ""), key: block.id }, block.type === "check" && /* @__PURE__ */ React.createElement("div", { className: "block-check" + (leaving[block.id] ? " checked" : ""), onClick: () => completeBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -802,7 +803,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
             delete refs.current[block.id];
           }
         },
-        className: "block-text",
+        className: "block-text" + (isBullet ? " block-bullet" : ""),
         contentEditable: "true",
         suppressContentEditableWarning: true,
         onInput: (e) => setBlockHtml(block.id, e.currentTarget.innerHTML, e.currentTarget),
