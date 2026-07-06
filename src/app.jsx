@@ -358,6 +358,8 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }) {
   const [offsetX, setOffsetX] = useState(0);
   const [snap, setSnap] = useState(false);
+  const [open, setOpen] = useState(false);
+  const REVEAL = 112;
   const startX = useRef(0);
   const startY = useRef(0);
   const active = useRef(false);
@@ -376,9 +378,8 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
         if (Math.abs(dx) >= Math.abs(dy)) { horiz.current = true; } else { active.current = false; return; }
       }
       e.preventDefault();
-      let x = dx;
-      if (x < -110) x = -110 - (x + 110) * 0.15;
-      if (x > 90) x = 90 + (x - 90) * 0.15;
+      let x = Math.min(0, dx);
+      if (x < -REVEAL - 20) x = -REVEAL - 20 + (x + REVEAL + 20) * 0.1;
       setSnap(false);
       setOffsetX(x);
     }
@@ -399,31 +400,44 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
     if (!active.current) return;
     active.current = false;
     setSnap(true);
-    if (offsetX < -80) {
-      setOffsetX(-500);
-      setTimeout(() => { setOffsetX(0); setSnap(false); onSwipeDelete(); }, 220);
-    } else if (offsetX > 60) {
-      setOffsetX(0);
-      onSwipePin();
+    if (offsetX < -(REVEAL / 2)) {
+      setOffsetX(-REVEAL);
+      setOpen(true);
     } else {
-      setOffsetX(0);
+      close();
     }
   }
 
-  const delReveal = Math.min(1, Math.max(0, -offsetX / 80));
-  const pinReveal = Math.min(1, Math.max(0, offsetX / 60));
+  function close() {
+    setSnap(true);
+    setOffsetX(0);
+    setOpen(false);
+  }
+
+  function handleDelete() {
+    setSnap(true);
+    setOffsetX(-500);
+    setTimeout(() => { onSwipeDelete(); setOffsetX(0); setSnap(false); setOpen(false); }, 220);
+  }
+
+  function handlePin() {
+    onSwipePin();
+    close();
+  }
+
+  const swiped = offsetX < -8;
 
   return (
-    <div ref={cardRef} style={{ position: 'relative', marginBottom: 10, borderRadius: 6, overflow: 'hidden' }}
+    <div ref={cardRef} style={{ position: 'relative', marginBottom: 10 }}
       onTouchStart={onStart} onTouchEnd={onEnd}
-      onTouchCancel={() => { active.current = false; setSnap(true); setOffsetX(0); }}>
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 72, background: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: delReveal, color: '#fff' }}>
-        {Icon.trash}
+      onTouchCancel={() => { active.current = false; close(); }}>
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+        <button className="swipe-action-btn" onClick={handleDelete}>{Icon.trash}</button>
+        <button className="swipe-action-btn" onClick={handlePin}>{Icon.pin}</button>
       </div>
-      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 72, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: pinReveal, color: '#fff' }}>
-        {Icon.pin}
-      </div>
-      <div style={{ transform: `translateX(${offsetX}px)`, transition: snap ? 'transform .2s ease' : 'none', willChange: 'transform' }}>
+      <div className={'swipe-inner' + (swiped ? ' swiped' : '')}
+        style={{ transform: `translateX(${offsetX}px)`, transition: snap ? 'transform .22s ease' : 'none', willChange: 'transform' }}
+        onClick={open ? close : undefined}>
         {children}
       </div>
     </div>
