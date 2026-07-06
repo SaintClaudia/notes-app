@@ -317,8 +317,14 @@ input[type=password]::placeholder { color: #5a5a5a; }
   padding: 1px 0; line-height: 1.55;
 }
 
-@media (min-width: 900px) {
+/* Tablet: full-width shell, standard sticky nav */
+@media (min-width: 600px) {
   .shell { max-width: none; }
+  .screen { padding: 24px 32px 90px; }
+}
+
+/* Desktop: centered content + floating pill nav */
+@media (min-width: 900px) {
   .screen { max-width: 1080px; margin: 0 auto; width: 100%; padding: 28px 48px 120px; }
   .compose-bar { right: max(32px, calc((100vw - 1080px) / 2 + 32px)); }
   .bottom-nav {
