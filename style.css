@@ -93,6 +93,7 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .cat-filter-chip {
   background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
   padding: 10px 12px; cursor: pointer; transition: border-color .12s;
+  text-align: left; font: inherit; display: block; width: 100%;
 }
 .cat-filter-chip:hover { border-color: var(--accent); }
 .cat-filter-chip.active { background: var(--accent-dim); border-color: var(--accent); }
