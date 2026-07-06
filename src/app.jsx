@@ -198,7 +198,7 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
 
   const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n));
-  const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0);
+  const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0); // used in summary text
 
   const catCounts = categories
     .map(cat => ({ cat, count: realNotes.filter(n => n.category === cat).length }))
@@ -233,14 +233,10 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
       </div>
       {!storageOk && <div className="empty-msg" style={{ color: 'var(--danger)' }}>storage error — changes may not save</div>}
 
-      <div className="stat-row">
-        <div className="stat">
-          <div className="num">{totalTasks}</div>
-          <div className="label">active tasks</div>
-        </div>
-        <div className="stat">
-          <div className="num">{realNotes.length}</div>
-          <div className="label">notes</div>
+      <div className="panel">
+        <div className="panel-title"><h2>summary</h2></div>
+        <div className={'summary-box' + (realNotes.length === 0 ? ' placeholder' : '')}>
+          {buildSummary()}
         </div>
       </div>
 
@@ -259,13 +255,6 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
           ))}
         </div>
       )}
-
-      <div className="panel">
-        <div className="panel-title"><h2>summary</h2></div>
-        <div className={'summary-box' + (realNotes.length === 0 ? ' placeholder' : '')}>
-          {buildSummary()}
-        </div>
-      </div>
 
       <div className="panel">
         <div className="panel-title">
