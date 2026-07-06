@@ -248,7 +248,7 @@ function App() {
     <div className="shell">
       <main className="screen">
         {editingNote ? (
-          <Editor note={editingNote} categories={categories}
+          <Editor key={editingNote.id} note={editingNote} categories={categories}
             onChange={patch => updateNote(editingNote.id, patch)}
             onAddCategory={addCategory}
             onRenameCategory={renameCategory}

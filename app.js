@@ -229,6 +229,7 @@ function App() {
   return /* @__PURE__ */ React.createElement("div", { className: "shell" }, /* @__PURE__ */ React.createElement("main", { className: "screen" }, editingNote ? /* @__PURE__ */ React.createElement(
     Editor,
     {
+      key: editingNote.id,
       note: editingNote,
       categories,
       onChange: (patch) => updateNote(editingNote.id, patch),
