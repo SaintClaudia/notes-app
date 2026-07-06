@@ -207,16 +207,18 @@ function App() {
       </div>
 
       <div className="bottom-nav">
-          <div className={'nav-item' + (!editingNote && tab === 'dashboard' ? ' active' : '')} onClick={() => navigate('dashboard')}>
-            {Icon.grid}<span className="nav-label">dashboard</span>
-          </div>
-          <div className="nav-item" onClick={openNewNote}>
-            <button className="nav-create-btn">{Icon.plus}</button>
-          </div>
-          <div className={'nav-item' + (!editingNote && tab === 'notes' ? ' active' : '')} onClick={() => navigate('notes')}>
-            {Icon.list}<span className="nav-label">notes</span>
-          </div>
+        <div className="nav-brand"><span className="dot"></span>notes</div>
+        <div className={'nav-item nav-item-dash' + (!editingNote && tab === 'dashboard' ? ' active' : '')} onClick={() => navigate('dashboard')}>
+          {Icon.grid}<span className="nav-label">dashboard</span>
         </div>
+        <div className={'nav-item nav-item-notes' + (!editingNote && tab === 'notes' ? ' active' : '')} onClick={() => navigate('notes')}>
+          {Icon.list}<span className="nav-label">notes</span>
+        </div>
+        <div className="nav-item nav-item-create" onClick={openNewNote}>
+          <button className="nav-create-btn">{Icon.plus}</button>
+          <span className="nav-new-label">new note</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -736,7 +738,8 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     function updatePos() {
       if (!composerRef.current) return;
       const keyboardH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      composerRef.current.style.bottom = (keyboardH > 10 ? keyboardH + 16 : 130) + 'px';
+      const isDesktop = window.innerWidth >= 900;
+      composerRef.current.style.bottom = (keyboardH > 10 ? keyboardH + 16 : isDesktop ? 30 : 130) + 'px';
     }
     vv.addEventListener('resize', updatePos);
     vv.addEventListener('scroll', updatePos);

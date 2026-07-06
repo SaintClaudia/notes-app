@@ -203,7 +203,7 @@ function App() {
       storageOk,
       onOpenNote: openNote
     }
-  ) : /* @__PURE__ */ React.createElement(NotesList, { notes, categories, onOpenNote: openNote, onDeleteMany: deleteMany, onPinNote: pinNote })), /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "dashboard" ? " active" : ""), onClick: () => navigate("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus)), /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "notes" ? " active" : ""), onClick: () => navigate("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes"))));
+  ) : /* @__PURE__ */ React.createElement(NotesList, { notes, categories, onOpenNote: openNote, onDeleteMany: deleteMany, onPinNote: pinNote })), /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes"), /* @__PURE__ */ React.createElement("div", { className: "nav-item nav-item-dash" + (!editingNote && tab === "dashboard" ? " active" : ""), onClick: () => navigate("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item nav-item-notes" + (!editingNote && tab === "notes" ? " active" : ""), onClick: () => navigate("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes")), /* @__PURE__ */ React.createElement("div", { className: "nav-item nav-item-create", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus), /* @__PURE__ */ React.createElement("span", { className: "nav-new-label" }, "new note"))));
 }
 function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
@@ -633,7 +633,8 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     function updatePos() {
       if (!composerRef.current) return;
       const keyboardH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      composerRef.current.style.bottom = (keyboardH > 10 ? keyboardH + 16 : 130) + "px";
+      const isDesktop = window.innerWidth >= 900;
+      composerRef.current.style.bottom = (keyboardH > 10 ? keyboardH + 16 : isDesktop ? 30 : 130) + "px";
     }
     vv.addEventListener("resize", updatePos);
     vv.addEventListener("scroll", updatePos);
