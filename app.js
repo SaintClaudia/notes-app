@@ -268,7 +268,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
   const [offsetX, setOffsetX] = useState(0);
   const [snap, setSnap] = useState(false);
   const [open, setOpen] = useState(false);
-  const REVEAL = 70;
+  const REVEAL = 112;
   const startX = useRef(0);
   const startY = useRef(0);
   const active = useRef(false);
@@ -350,7 +350,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
         close();
       }
     },
-    /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", right: 0, top: 0, bottom: 0, width: REVEAL, display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn", onClick: handleDelete }, Icon.trash)),
+    /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", right: 0, top: 0, bottom: 0, width: REVEAL, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 } }, /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-delete", onClick: handleDelete }, Icon.trash), /* @__PURE__ */ React.createElement("button", { className: "swipe-action-btn swipe-pin", onClick: handlePin }, Icon.pin)),
     /* @__PURE__ */ React.createElement(
       "div",
       {
