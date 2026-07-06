@@ -19,7 +19,13 @@ const storageAdapter = {
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function newBlock(type = 'text', text = '') { return { id: uid(), type, text }; }
-function newNote() { return { id: uid(), title: '', category: '', archived: false, private: false, pinned: false, blocks: [], updatedAt: Date.now() }; }
+function newNote() { return { id: uid(), title: '', tags: [], archived: false, private: false, pinned: false, blocks: [], updatedAt: Date.now() }; }
+
+// Migrates legacy single-category notes (pre-multi-tag) onto the tags array
+function normalizeNote(n) {
+  const { category, ...rest } = n;
+  return { ...rest, tags: n.tags || (category ? [category] : []) };
+}
 
 function stripHtml(html) {
   if (!html) return '';
@@ -81,7 +87,7 @@ function noteSummary(n) {
 
 function noteMatchesSearch(n, q) {
   if (!q) return true;
-  const hay = (n.title + ' ' + n.category + ' ' + n.blocks.map(b => stripHtml(b.text)).join(' ')).toLowerCase();
+  const hay = (n.title + ' ' + n.tags.join(' ') + ' ' + n.blocks.map(b => stripHtml(b.text)).join(' ')).toLowerCase();
   return hay.includes(q.toLowerCase());
 }
 
@@ -118,7 +124,7 @@ function App() {
       let loadedNotes = [];
       try {
         const r = await storageAdapter.get('notes_v2');
-        loadedNotes = r ? JSON.parse(r.value) : [];
+        loadedNotes = (r ? JSON.parse(r.value) : []).map(normalizeNote);
       } catch (e) {}
       try {
         const c = await storageAdapter.get('categories_v1');
@@ -187,12 +193,12 @@ function App() {
     const clean = newName.trim();
     if (!clean || clean === oldName || categories.includes(clean)) return;
     persistCategories(categories.map(c => c === oldName ? clean : c));
-    persist(notes.map(n => n.category === oldName ? { ...n, category: clean } : n));
+    persist(notes.map(n => n.tags.includes(oldName) ? { ...n, tags: n.tags.map(t => t === oldName ? clean : t) } : n));
   }
 
   function deleteCategory(name) {
     persistCategories(categories.filter(c => c !== name));
-    persist(notes.map(n => n.category === name ? { ...n, category: '' } : n));
+    persist(notes.map(n => n.tags.includes(name) ? { ...n, tags: n.tags.filter(t => t !== name) } : n));
   }
 
   const editingNote = editingId ? notes.find(n => n.id === editingId) : null;
@@ -248,10 +254,10 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n));
 
   const catCounts = categories
-    .map(cat => ({ cat, count: realNotes.filter(n => n.category === cat).length }))
+    .map(cat => ({ cat, count: realNotes.filter(n => n.tags.includes(cat)).length }))
     .filter(b => b.count > 0);
 
-  const filteredNotes = activeFilter ? realNotes.filter(n => n.category === activeFilter) : realNotes;
+  const filteredNotes = activeFilter ? realNotes.filter(n => n.tags.includes(activeFilter)) : realNotes;
 
   function buildSummary() {
     if (realNotes.length === 0) return 'No notes yet — tap + to start one.';
@@ -283,11 +289,12 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
       }
       return 'an untitled note';
     }
-    function catOf(n) { return n.category?.trim() || ''; }
+    function catOf(n) { return n.tags[0]?.trim() || ''; }
+    function sharedTag(a, b) { return a.tags.find(t => b.tags.includes(t)) || ''; }
 
-    // Two notes are related if they share a category, or share meaningful title words
+    // Two notes are related if they share a tag, or share meaningful title words
     function related(a, b) {
-      if (catOf(a) && catOf(a) === catOf(b)) return true;
+      if (sharedTag(a, b)) return true;
       const aw = (a.title || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
       const bw = (b.title || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
       return aw.some(w => bw.includes(w));
@@ -335,7 +342,7 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
       const [a, b] = sorted;
       const aOpen = openItems(a);
       const bOpen = openItems(b);
-      const sharedCat = catOf(a) && catOf(a) === catOf(b) ? catOf(a) : '';
+      const sharedCat = sharedTag(a, b);
 
       if (related(a, b)) {
         sentences.push(
@@ -488,7 +495,7 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
                   <div className="title">{n.title || 'Untitled'}</div>
                   <div className="snippet">{noteSummary(n)}</div>
                   <div className="meta-row">
-                    <span className="meta">{n.category && <span className="cat-tag">{n.category}</span>}</span>
+                    <span className="meta">{n.tags.map(t => <span className="cat-tag" key={t}>{t}</span>)}</span>
                     {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
                   </div>
                 </>
@@ -607,9 +614,9 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
   const deleteTimer = useRef(null);
 
   const allReal = notes.filter(n => !n.archived && !isNoteEmpty(n) && !pendingDelete.has(n.id));
-  const usedCats = categories.filter(cat => allReal.some(n => n.category === cat));
+  const usedCats = categories.filter(cat => allReal.some(n => n.tags.includes(cat)));
   const realNotes = allReal
-    .filter(n => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q))
+    .filter(n => (!activeFilter || n.tags.includes(activeFilter)) && noteMatchesSearch(n, q))
     .sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
@@ -720,7 +727,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
               <div className="meta-row">
                 <span className="meta">
                   {new Date(n.updatedAt).toLocaleDateString()}
-                  {n.category && <span className="cat-tag">{n.category}</span>}
+                  {n.tags.map(t => <span className="cat-tag" key={t}>{t}</span>)}
                 </span>
                 {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
               </div>
@@ -745,7 +752,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
 }
 
 /* ---------- Category picker ---------- */
-function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCategory, onDeleteCategory }) {
+function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory, onRenameCategory, onDeleteCategory }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
   const [editingCat, setEditingCat] = useState(null);
@@ -767,7 +774,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
 
   function submit() {
     const name = onAddCategory(draft);
-    if (name) onSelect(value === name ? '' : name);
+    if (name && !selected.includes(name)) onSelectedChange([...selected, name]);
     setDraft('');
     setAdding(false);
   }
@@ -785,20 +792,20 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
 
   function handleChipClick(cat) {
     if (didLongPress.current) { didLongPress.current = false; return; }
-    onSelect(value === cat ? '' : cat);
+    onSelectedChange(selected.includes(cat) ? selected.filter(c => c !== cat) : [...selected, cat]);
   }
 
   function confirmRename() {
     const clean = editDraft.trim();
     if (clean && clean !== editingCat) {
       onRenameCategory(editingCat, clean);
-      if (value === editingCat) onSelect(clean);
+      if (selected.includes(editingCat)) onSelectedChange(selected.map(c => c === editingCat ? clean : c));
     }
     setEditingCat(null);
   }
 
   function handleDeleteCat(cat) {
-    if (value === cat) onSelect('');
+    if (selected.includes(cat)) onSelectedChange(selected.filter(c => c !== cat));
     onDeleteCategory(cat);
     setEditingCat(null);
   }
@@ -820,7 +827,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
             </button>
           </div>
         ) : (
-          <div key={c} className={'cat-pick' + (value === c ? ' selected' : '')}
+          <div key={c} className={'cat-pick' + (selected.includes(c) ? ' selected' : '')}
             onClick={() => handleChipClick(c)}
             onMouseDown={() => startPress(c)}
             onMouseUp={cancelPress}
@@ -854,7 +861,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
 function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, onDeleteCategory, onBack, onSave }) {
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
-  const [category, setCategory] = useState(note.category || '');
+  const [tags, setTags] = useState(note.tags || []);
   const [isPrivate, setIsPrivate] = useState(note.private || false);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
@@ -864,7 +871,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   const refs = useRef({});
   const composerRef = useRef(null);
 
-  useEffect(() => { onChange({ title, blocks, category, private: isPrivate }); }, [title, blocks, category, isPrivate]);
+  useEffect(() => { onChange({ title, blocks, tags, private: isPrivate }); }, [title, blocks, tags, isPrivate]);
 
   useEffect(() => {
     if (focusTarget && refs.current[focusTarget.id]) {
@@ -1034,7 +1041,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
       <input type="text" className="editor-title" placeholder="Title"
         value={title} onChange={e => setTitle(e.target.value)} />
 
-      <CategoryPicker categories={categories} value={category} onSelect={setCategory}
+      <CategoryPicker categories={categories} selected={tags} onSelectedChange={setTags}
         onAddCategory={onAddCategory} onRenameCategory={onRenameCategory} onDeleteCategory={onDeleteCategory} />
 
       <div className="editor-body" onClick={e => { if (e.target === e.currentTarget) addBlock(); }}>
