@@ -21,24 +21,29 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 function newBlock(type = 'text', text = '') { return { id: uid(), type, text }; }
 function newNote() { return { id: uid(), title: '', category: '', archived: false, private: false, pinned: false, blocks: [], updatedAt: Date.now() }; }
 
+function stripHtml(html) {
+  if (!html) return '';
+  return html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ');
+}
+
 function isNoteEmpty(n) {
   if (n.title && n.title.trim()) return false;
-  return !n.blocks.some(b => b.text && b.text.trim());
+  return !n.blocks.some(b => b.text && stripHtml(b.text).trim());
 }
 
 function noteSnippet(n) {
-  const parts = n.blocks.filter(b => !b.done && b.text && b.text.trim()).map(b => (b.type === 'check' ? '○ ' : '') + b.text.trim());
+  const parts = n.blocks.filter(b => !b.done && b.text && stripHtml(b.text).trim()).map(b => (b.type === 'check' ? '○ ' : '') + stripHtml(b.text).trim());
   return parts.join('  ·  ') || 'Empty note';
 }
 
 function noteActiveCount(n) {
-  return n.blocks.filter(b => b.type === 'check' && !b.done && b.text && b.text.trim()).length;
+  return n.blocks.filter(b => b.type === 'check' && !b.done && b.text && stripHtml(b.text).trim()).length;
 }
 
 function noteSummary(n) {
-  const active = n.blocks.filter(b => b.type === 'check' && !b.done && b.text?.trim());
-  const done = n.blocks.filter(b => b.type === 'check' && b.done && b.text?.trim());
-  const texts = n.blocks.filter(b => b.type === 'text' && b.text?.trim());
+  const active = n.blocks.filter(b => b.type === 'check' && !b.done && stripHtml(b.text).trim());
+  const done = n.blocks.filter(b => b.type === 'check' && b.done && stripHtml(b.text).trim());
+  const texts = n.blocks.filter(b => b.type === 'text' && stripHtml(b.text).trim());
   const total = active.length + done.length;
   if (total > 0 && texts.length === 0) {
     return done.length === 0
@@ -46,7 +51,7 @@ function noteSummary(n) {
       : `${done.length} of ${total} done`;
   }
   if (texts.length > 0) {
-    const first = texts[0].text.trim();
+    const first = stripHtml(texts[0].text).trim();
     const preview = first.length > 80 ? first.slice(0, 80) + '…' : first;
     return total > 0 ? `${preview} · ${active.length} task${active.length !== 1 ? 's' : ''}` : preview;
   }
@@ -55,7 +60,7 @@ function noteSummary(n) {
 
 function noteMatchesSearch(n, q) {
   if (!q) return true;
-  const hay = (n.title + ' ' + n.category + ' ' + n.blocks.map(b => b.text).join(' ')).toLowerCase();
+  const hay = (n.title + ' ' + n.category + ' ' + n.blocks.map(b => stripHtml(b.text)).join(' ')).toLowerCase();
   return hay.includes(q.toLowerCase());
 }
 
@@ -247,15 +252,15 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 
     const sorted = [...visible].sort((a, b) => b.updatedAt - a.updatedAt);
     const tasks = visible.flatMap(n =>
-      n.blocks.filter(b => b.type === 'check' && !b.done && b.text?.trim())
-    ).map(b => b.text.trim());
+      n.blocks.filter(b => b.type === 'check' && !b.done && stripHtml(b.text).trim())
+    ).map(b => stripHtml(b.text).trim());
 
     function noteTitle(n) {
-      return n.title?.trim() || n.blocks.find(b => b.text?.trim())?.text.trim() || 'an untitled note';
+      return n.title?.trim() || stripHtml(n.blocks.find(b => stripHtml(b.text).trim())?.text || '') || 'an untitled note';
     }
     function noteDesc(n) {
       const title = n.title?.trim();
-      const first = n.blocks.find(b => !b.done && b.text?.trim())?.text.trim() || '';
+      const first = stripHtml(n.blocks.find(b => !b.done && stripHtml(b.text).trim())?.text || '').trim();
       if (title && first) return `${title} — ${first}`;
       return title || first || 'an untitled note';
     }
@@ -718,14 +723,24 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   const composerRef = useRef(null);
 
   useEffect(() => { onChange({ title, blocks, category, private: isPrivate }); }, [title, blocks, category, isPrivate]);
-  useLayoutEffect(() => { Object.values(refs.current).forEach(autoGrow); }, [blocks]);
 
   useEffect(() => {
     if (focusTarget && refs.current[focusTarget.id]) {
       const el = refs.current[focusTarget.id];
       el.focus();
-      const pos = focusTarget.pos ?? el.value.length;
-      try { el.setSelectionRange(pos, pos); } catch (e) {}
+      try {
+        const range = document.createRange();
+        const sel = window.getSelection();
+        if (focusTarget.pos === 0) {
+          range.setStart(el, 0);
+          range.collapse(true);
+        } else {
+          range.selectNodeContents(el);
+          range.collapse(false);
+        }
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (e) {}
       setFocusTarget(null);
     }
   }, [focusTarget, blocks]);
@@ -750,12 +765,15 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     setFocusTarget({ id: b.id, pos: 0 });
   }
 
-  function setBlockText(id, text) {
-    setBlocks(prev => prev.map(b => {
-      if (b.id !== id) return b;
-      if (b.type === 'text' && text.startsWith('- ')) return { ...b, type: 'check', text: text.slice(2) };
-      return { ...b, text };
-    }));
+  function setBlockHtml(id, html, el) {
+    const plain = el ? (el.innerText || '') : stripHtml(html);
+    if (el && plain.startsWith('- ')) {
+      el.innerHTML = '';
+      setBlocks(prev => prev.map(b => b.id === id ? { ...b, type: 'check', text: '' } : b));
+      return;
+    }
+    const normalized = html === '<br>' ? '' : html;
+    setBlocks(prev => prev.map(b => b.id === id ? { ...b, text: normalized } : b));
   }
 
   function completeBlock(id) {
@@ -771,37 +789,33 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   }
 
   function handleBlockKeyDown(e, block, index) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); document.execCommand('bold'); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); document.execCommand('italic'); return; }
+
     if (e.key === 'Enter') {
       e.preventDefault();
-      // Empty checklist block + Enter: remove the circle and replace with a text block
-      if (block.type === 'check' && block.text === '') {
+      const el = e.currentTarget;
+      const isEmpty = el.innerHTML === '' || el.innerHTML === '<br>' || el.innerText.trim() === '';
+      if (block.type === 'check' && isEmpty) {
         const b = newBlock('text', '');
-        setBlocks(prev => {
-          const next = [...prev];
-          next.splice(index, 1, b);
-          return next;
-        });
+        setBlocks(prev => { const next = [...prev]; next.splice(index, 1, b); return next; });
         setFocusTarget({ id: b.id, pos: 0 });
       } else {
         const b = newBlock(block.type, '');
-        setBlocks(prev => {
-          const next = [...prev];
-          next.splice(index + 1, 0, b);
-          return next;
-        });
+        setBlocks(prev => { const next = [...prev]; next.splice(index + 1, 0, b); return next; });
         setFocusTarget({ id: b.id, pos: 0 });
       }
     }
     if (e.key === 'Backspace') {
-      const el = e.target;
-      if (el.selectionStart === 0 && el.selectionEnd === 0 && block.text === '') {
-        if (index === 0) return;
+      const el = e.currentTarget;
+      const isEmpty = el.innerHTML === '' || el.innerHTML === '<br>' || el.innerText.trim() === '';
+      if (isEmpty && index > 0) {
         e.preventDefault();
         setBlocks(prev => {
           const prevBlock = prev[index - 1];
           const next = [...prev];
           next.splice(index, 1);
-          setFocusTarget({ id: prevBlock.id, pos: prevBlock.text.length });
+          setFocusTarget({ id: prevBlock.id, pos: 'end' });
           return next;
         });
       }
@@ -848,12 +862,18 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
                   {Icon.check}
                 </div>
               )}
-              <textarea
-                ref={el => { if (el) { refs.current[block.id] = el; } else { delete refs.current[block.id]; } }}
+              <div
+                ref={el => {
+                  if (el) {
+                    refs.current[block.id] = el;
+                    const cur = el.innerHTML === '<br>' ? '' : el.innerHTML;
+                    if (cur !== (block.text || '')) el.innerHTML = block.text || '';
+                  } else { delete refs.current[block.id]; }
+                }}
                 className="block-text"
-                rows={1}
-                value={block.text}
-                onChange={e => { setBlockText(block.id, e.target.value); autoGrow(e.target); }}
+                contentEditable="true"
+                suppressContentEditableWarning={true}
+                onInput={e => setBlockHtml(block.id, e.currentTarget.innerHTML, e.currentTarget)}
                 onKeyDown={e => handleBlockKeyDown(e, block, i)}
               />
             </div>
@@ -869,7 +889,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
                 <div className="block-check checked" onClick={() => uncompleteBlock(block.id)}>
                   {Icon.check}
                 </div>
-                <div className="block-text block-text-done">{block.text}</div>
+                <div className="block-text block-text-done" dangerouslySetInnerHTML={{ __html: block.text || '' }} />
               </div>
             ))}
           </div>
