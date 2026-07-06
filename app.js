@@ -68,7 +68,6 @@ function App() {
   const [notes, setNotes] = useState(null);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [editingId, setEditingId] = useState(null);
-  const [viewingArchive, setViewingArchive] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
   useEffect(() => {
     (async () => {
@@ -131,17 +130,12 @@ function App() {
   function updateNote(id, patch) {
     persist(notes.map((n) => n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n));
   }
-  function archiveNote(id) {
-    updateNote(id, { archived: true });
-    setEditingId(null);
-  }
-  function restoreNote(id) {
-    updateNote(id, { archived: false });
-    setEditingId(null);
-  }
-  function deleteForever(id) {
+  function deleteNote(id) {
     persist(notes.filter((n) => n.id !== id));
     setEditingId(null);
+  }
+  function deleteMany(ids) {
+    persist(notes.filter((n) => !ids.has(n.id)));
   }
   function addCategory(name) {
     const clean = name.trim();
@@ -167,11 +161,9 @@ function App() {
       onAddCategory: addCategory,
       onBack: closeEditor,
       onSave: saveAndViewNotes,
-      onArchive: () => archiveNote(editingNote.id),
-      onRestore: () => restoreNote(editingNote.id),
-      onDeleteForever: () => deleteForever(editingNote.id)
+      onDelete: () => deleteNote(editingNote.id)
     }
-  ) : viewingArchive ? /* @__PURE__ */ React.createElement(ArchiveList, { notes, onOpenNote: openNote, onBack: () => setViewingArchive(false) }) : tab === "dashboard" ? /* @__PURE__ */ React.createElement(
+  ) : tab === "dashboard" ? /* @__PURE__ */ React.createElement(
     Dashboard,
     {
       notes,
@@ -179,7 +171,7 @@ function App() {
       storageOk,
       onOpenNote: openNote
     }
-  ) : /* @__PURE__ */ React.createElement(NotesList, { notes, categories, onOpenNote: openNote })), !viewingArchive && /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "dashboard" ? " active" : ""), onClick: () => navigate("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus)), /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "notes" ? " active" : ""), onClick: () => navigate("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes"))));
+  ) : /* @__PURE__ */ React.createElement(NotesList, { notes, categories, onOpenNote: openNote, onDeleteMany: deleteMany })), /* @__PURE__ */ React.createElement("div", { className: "bottom-nav" }, /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "dashboard" ? " active" : ""), onClick: () => navigate("dashboard") }, Icon.grid, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "dashboard")), /* @__PURE__ */ React.createElement("div", { className: "nav-item", onClick: openNewNote }, /* @__PURE__ */ React.createElement("button", { className: "nav-create-btn" }, Icon.plus)), /* @__PURE__ */ React.createElement("div", { className: "nav-item" + (!editingNote && tab === "notes" ? " active" : ""), onClick: () => navigate("notes") }, Icon.list, /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes"))));
 }
 function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
@@ -218,39 +210,65 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     },
     /* @__PURE__ */ React.createElement("div", { className: "num" }, b.count),
     /* @__PURE__ */ React.createElement("div", { className: "label" }, b.cat)
-  ))), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, activeFilter || "recent"), activeFilter && /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setActiveFilter(null), title: "clear filter" }, "\u2715")), filteredNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, activeFilter ? `No notes tagged "${activeFilter}".` : "No notes yet \u2014 tap + to start one."), [...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id), style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))))));
+  ))), /* @__PURE__ */ React.createElement("div", { className: "panel" }, /* @__PURE__ */ React.createElement("div", { className: "panel-title" }, /* @__PURE__ */ React.createElement("h2", null, activeFilter || "recent"), activeFilter && /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setActiveFilter(null), title: "clear filter" }, "\u2715")), filteredNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, activeFilter ? `No notes tagged "${activeFilter}".` : "No notes yet \u2014 tap + to start one."), [...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id), style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active")))))));
 }
-function NotesList({ notes, categories, onOpenNote }) {
+function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
   const [q, setQ] = useState("");
   const [activeFilter, setActiveFilter] = useState(null);
-  const showArchive = activeFilter === "__archive__";
+  const [isEditing, setIsEditing] = useState(false);
+  const [selected, setSelected] = useState(/* @__PURE__ */ new Set());
   const allReal = notes.filter((n) => !n.archived && !isNoteEmpty(n));
   const usedCats = categories.filter((cat) => allReal.some((n) => n.category === cat));
-  const archivedNotes = notes.filter((n) => n.archived).sort((a, b) => b.updatedAt - a.updatedAt);
-  const realNotes = showArchive ? archivedNotes : allReal.filter((n) => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q)).sort((a, b) => b.updatedAt - a.updatedAt);
-  function setFilter(f) {
-    setActiveFilter(activeFilter === f ? null : f);
+  const realNotes = allReal.filter((n) => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q)).sort((a, b) => b.updatedAt - a.updatedAt);
+  function toggleSelect(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), /* @__PURE__ */ React.createElement("div", { className: "search-box" }, Icon.search, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search notes...", value: q, onChange: (e) => setQ(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "filter-chips" }, usedCats.map((cat) => /* @__PURE__ */ React.createElement(
+  function exitEdit() {
+    setIsEditing(false);
+    setSelected(/* @__PURE__ */ new Set());
+  }
+  function handleDelete() {
+    onDeleteMany(selected);
+    exitEdit();
+  }
+  function handleCardTap(id) {
+    if (isEditing) {
+      toggleSelect(id);
+    } else {
+      onOpenNote(id);
+    }
+  }
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes"), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" }, isEditing ? /* @__PURE__ */ React.createElement(React.Fragment, null, selected.size > 0 && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      className: "icon-btn-plain",
+      style: { color: "var(--danger)" },
+      onClick: handleDelete,
+      title: "delete selected"
+    },
+    Icon.trash
+  ), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: exitEdit }, "done")) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setIsEditing(true) }, "edit"))), !isEditing && /* @__PURE__ */ React.createElement("div", { className: "search-box" }, Icon.search, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search notes...", value: q, onChange: (e) => setQ(e.target.value) })), !isEditing && usedCats.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-chips" }, usedCats.map((cat) => /* @__PURE__ */ React.createElement(
     "div",
     {
       key: cat,
       className: "filter-chip" + (activeFilter === cat ? " active" : ""),
-      onClick: () => setFilter(cat)
+      onClick: () => setActiveFilter(activeFilter === cat ? null : cat)
     },
     cat
-  )), /* @__PURE__ */ React.createElement(
+  ))), isEditing && selected.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "bulk-bar" }, selected.size, " selected"), realNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, q || activeFilter ? "No matches." : "No notes yet."), realNotes.map((n) => /* @__PURE__ */ React.createElement(
     "div",
     {
-      className: "filter-chip" + (showArchive ? " active" : ""),
-      onClick: () => setFilter("__archive__")
+      className: "note-card" + (isEditing && selected.has(n.id) ? " selected" : ""),
+      key: n.id,
+      onClick: () => handleCardTap(n.id)
     },
-    "archive"
-  )), realNotes.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, showArchive ? "Archive is empty." : q || activeFilter ? "No matches." : "No notes yet."), realNotes.map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id) }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, new Date(n.updatedAt).toLocaleDateString(), n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active")))));
-}
-function ArchiveList({ notes, onOpenNote, onBack }) {
-  const archived = notes.filter((n) => n.archived).sort((a, b) => b.updatedAt - a.updatedAt);
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onBack }, Icon.back), /* @__PURE__ */ React.createElement("div", { className: "brand" }, "archive")), archived.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg" }, "Archive is empty."), archived.map((n) => /* @__PURE__ */ React.createElement("div", { className: "note-card", key: n.id, onClick: () => onOpenNote(n.id) }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, new Date(n.updatedAt).toLocaleDateString(), n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category))))));
+    isEditing && /* @__PURE__ */ React.createElement("div", { className: "select-circle" + (selected.has(n.id) ? " checked" : "") }),
+    /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, new Date(n.updatedAt).toLocaleDateString(), n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active")))
+  )));
 }
 function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
   const [adding, setAdding] = useState(false);
@@ -292,7 +310,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
     }
   ) : /* @__PURE__ */ React.createElement("div", { className: "cat-pick add", onClick: () => setAdding(true) }, "+ new"));
 }
-function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onArchive, onRestore, onDeleteForever }) {
+function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onDelete }) {
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || "");
@@ -399,7 +417,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
   }
   const activeBlocks = blocks.filter((b) => !b.done);
   const completedBlocks = blocks.filter((b) => b.done);
-  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onBack }, Icon.back), note.archived ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onRestore, title: "restore" }, Icon.restore), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onDeleteForever, title: "delete forever" }, Icon.trash)) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onArchive, title: "archive" }, Icon.archive)), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onBack }, Icon.back), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onDelete, title: "delete note" }, Icon.trash)), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
@@ -408,7 +426,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
       value: title,
       onChange: (e) => setTitle(e.target.value)
     }
-  ), note.archived && /* @__PURE__ */ React.createElement("div", { className: "archive-banner" }, "This note is archived. Restore it to keep editing, or delete it for good."), /* @__PURE__ */ React.createElement(CategoryPicker, { categories, value: category, onSelect: setCategory, onAddCategory }), /* @__PURE__ */ React.createElement("div", { className: "editor-body", onClick: (e) => {
+  ), /* @__PURE__ */ React.createElement(CategoryPicker, { categories, value: category, onSelect: setCategory, onAddCategory }), /* @__PURE__ */ React.createElement("div", { className: "editor-body", onClick: (e) => {
     if (e.target === e.currentTarget) addBlock();
   } }, activeBlocks.length === 0 && completedBlocks.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { cursor: "text" }, onClick: addBlock }, "Tap to start writing..."), activeBlocks.map((block) => {
     const i = blocks.findIndex((b) => b.id === block.id);

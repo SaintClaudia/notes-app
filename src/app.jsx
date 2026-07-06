@@ -70,7 +70,6 @@ function App() {
   const [notes, setNotes] = useState(null);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [editingId, setEditingId] = useState(null);
-  const [viewingArchive, setViewingArchive] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
 
   useEffect(() => {
@@ -132,9 +131,8 @@ function App() {
     persist(notes.map(n => n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n));
   }
 
-  function archiveNote(id) { updateNote(id, { archived: true }); setEditingId(null); }
-  function restoreNote(id) { updateNote(id, { archived: false }); setEditingId(null); }
-  function deleteForever(id) { persist(notes.filter(n => n.id !== id)); setEditingId(null); }
+  function deleteNote(id) { persist(notes.filter(n => n.id !== id)); setEditingId(null); }
+  function deleteMany(ids) { persist(notes.filter(n => !ids.has(n.id))); }
 
   function addCategory(name) {
     const clean = name.trim();
@@ -164,21 +162,16 @@ function App() {
             onAddCategory={addCategory}
             onBack={closeEditor}
             onSave={saveAndViewNotes}
-            onArchive={() => archiveNote(editingNote.id)}
-            onRestore={() => restoreNote(editingNote.id)}
-            onDeleteForever={() => deleteForever(editingNote.id)} />
-        ) : viewingArchive ? (
-          <ArchiveList notes={notes} onOpenNote={openNote} onBack={() => setViewingArchive(false)} />
+            onDelete={() => deleteNote(editingNote.id)} />
         ) : tab === 'dashboard' ? (
           <Dashboard notes={notes} categories={categories} storageOk={storageOk}
             onOpenNote={openNote} />
         ) : (
-          <NotesList notes={notes} categories={categories} onOpenNote={openNote} />
+          <NotesList notes={notes} categories={categories} onOpenNote={openNote} onDeleteMany={deleteMany} />
         )}
       </div>
 
-      {!viewingArchive && (
-        <div className="bottom-nav">
+      <div className="bottom-nav">
           <div className={'nav-item' + (!editingNote && tab === 'dashboard' ? ' active' : '')} onClick={() => navigate('dashboard')}>
             {Icon.grid}<span className="nav-label">dashboard</span>
           </div>
@@ -189,7 +182,6 @@ function App() {
             {Icon.list}<span className="nav-label">notes</span>
           </div>
         </div>
-      )}
     </div>
   );
 }
@@ -280,11 +272,13 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
         )}
         {[...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map(n => (
           <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)} style={{ marginBottom: 8 }}>
-            <div className="title">{n.title || 'Untitled'}</div>
-            <div className="snippet">{noteSnippet(n)}</div>
-            <div className="meta-row">
-              <span className="meta">{n.category && <span className="cat-tag">{n.category}</span>}</span>
-              {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
+            <div className="note-card-body">
+              <div className="title">{n.title || 'Untitled'}</div>
+              <div className="snippet">{noteSnippet(n)}</div>
+              <div className="meta-row">
+                <span className="meta">{n.category && <span className="cat-tag">{n.category}</span>}</span>
+                {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
+              </div>
             </div>
           </div>
         ))}
@@ -294,76 +288,95 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 }
 
 /* ---------- Notes list ---------- */
-function NotesList({ notes, categories, onOpenNote }) {
+function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
   const [q, setQ] = useState('');
   const [activeFilter, setActiveFilter] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selected, setSelected] = useState(new Set());
 
-  const showArchive = activeFilter === '__archive__';
   const allReal = notes.filter(n => !n.archived && !isNoteEmpty(n));
   const usedCats = categories.filter(cat => allReal.some(n => n.category === cat));
-  const archivedNotes = notes.filter(n => n.archived).sort((a, b) => b.updatedAt - a.updatedAt);
-  const realNotes = showArchive
-    ? archivedNotes
-    : allReal.filter(n => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q))
-        .sort((a, b) => b.updatedAt - a.updatedAt);
+  const realNotes = allReal
+    .filter(n => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  function setFilter(f) { setActiveFilter(activeFilter === f ? null : f); }
+  function toggleSelect(id) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function exitEdit() { setIsEditing(false); setSelected(new Set()); }
+
+  function handleDelete() {
+    onDeleteMany(selected);
+    exitEdit();
+  }
+
+  function handleCardTap(id) {
+    if (isEditing) { toggleSelect(id); } else { onOpenNote(id); }
+  }
 
   return (
     <div>
       <div className="topbar">
         <div className="brand"><span className="dot"></span>notes</div>
-      </div>
-      <div className="search-box">
-        {Icon.search}
-        <input type="text" placeholder="Search notes..." value={q} onChange={e => setQ(e.target.value)} />
-      </div>
-      <div className="filter-chips">
-        {usedCats.map(cat => (
-          <div key={cat} className={'filter-chip' + (activeFilter === cat ? ' active' : '')}
-            onClick={() => setFilter(cat)}>
-            {cat}
-          </div>
-        ))}
-        <div className={'filter-chip' + (showArchive ? ' active' : '')}
-          onClick={() => setFilter('__archive__')}>
-          archive
+        <div className="topbar-actions">
+          {isEditing ? (
+            <>
+              {selected.size > 0 && (
+                <button className="icon-btn-plain" style={{ color: 'var(--danger)' }}
+                  onClick={handleDelete} title="delete selected">
+                  {Icon.trash}
+                </button>
+              )}
+              <button className="icon-btn-plain" onClick={exitEdit}>done</button>
+            </>
+          ) : (
+            <button className="icon-btn-plain" onClick={() => setIsEditing(true)}>edit</button>
+          )}
         </div>
       </div>
-      {realNotes.length === 0 && <div className="empty-msg">{showArchive ? 'Archive is empty.' : q || activeFilter ? 'No matches.' : 'No notes yet.'}</div>}
+      {!isEditing && (
+        <div className="search-box">
+          {Icon.search}
+          <input type="text" placeholder="Search notes..." value={q} onChange={e => setQ(e.target.value)} />
+        </div>
+      )}
+      {!isEditing && usedCats.length > 0 && (
+        <div className="filter-chips">
+          {usedCats.map(cat => (
+            <div key={cat} className={'filter-chip' + (activeFilter === cat ? ' active' : '')}
+              onClick={() => setActiveFilter(activeFilter === cat ? null : cat)}>
+              {cat}
+            </div>
+          ))}
+        </div>
+      )}
+      {isEditing && selected.size > 0 && (
+        <div className="bulk-bar">
+          {selected.size} selected
+        </div>
+      )}
+      {realNotes.length === 0 && <div className="empty-msg">{q || activeFilter ? 'No matches.' : 'No notes yet.'}</div>}
       {realNotes.map(n => (
-        <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)}>
-          <div className="title">{n.title || 'Untitled'}</div>
-          <div className="snippet">{noteSnippet(n)}</div>
-          <div className="meta-row">
-            <span className="meta">
-              {new Date(n.updatedAt).toLocaleDateString()}
-              {n.category && <span className="cat-tag">{n.category}</span>}
-            </span>
-            {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ---------- Archive list ---------- */
-function ArchiveList({ notes, onOpenNote, onBack }) {
-  const archived = notes.filter(n => n.archived).sort((a, b) => b.updatedAt - a.updatedAt);
-  return (
-    <div>
-      <div className="topbar">
-        <button className="icon-btn-plain" onClick={onBack}>{Icon.back}</button>
-        <div className="brand">archive</div>
-      </div>
-      {archived.length === 0 && <div className="empty-msg">Archive is empty.</div>}
-      {archived.map(n => (
-        <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)}>
-          <div className="title">{n.title || 'Untitled'}</div>
-          <div className="snippet">{noteSnippet(n)}</div>
-          <div className="meta-row">
-            <span className="meta">{new Date(n.updatedAt).toLocaleDateString()}{n.category && <span className="cat-tag">{n.category}</span>}</span>
+        <div className={'note-card' + (isEditing && selected.has(n.id) ? ' selected' : '')}
+          key={n.id} onClick={() => handleCardTap(n.id)}>
+          {isEditing && (
+            <div className={'select-circle' + (selected.has(n.id) ? ' checked' : '')} />
+          )}
+          <div className="note-card-body">
+            <div className="title">{n.title || 'Untitled'}</div>
+            <div className="snippet">{noteSnippet(n)}</div>
+            <div className="meta-row">
+              <span className="meta">
+                {new Date(n.updatedAt).toLocaleDateString()}
+                {n.category && <span className="cat-tag">{n.category}</span>}
+              </span>
+              {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
+            </div>
           </div>
         </div>
       ))}
@@ -405,7 +418,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
 }
 
 /* ---------- Editor ---------- */
-function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onArchive, onRestore, onDeleteForever }) {
+function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onDelete }) {
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || '');
@@ -513,20 +526,11 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
     <div className="editor-wrap">
       <div className="editor-topbar">
         <button className="icon-btn-plain" onClick={onBack}>{Icon.back}</button>
-        {note.archived ? (
-          <>
-            <button className="icon-btn-plain" onClick={onRestore} title="restore">{Icon.restore}</button>
-            <button className="icon-btn-plain" onClick={onDeleteForever} title="delete forever">{Icon.trash}</button>
-          </>
-        ) : (
-          <button className="icon-btn-plain" onClick={onArchive} title="archive">{Icon.archive}</button>
-        )}
+        <button className="icon-btn-plain" onClick={onDelete} title="delete note">{Icon.trash}</button>
       </div>
 
       <input type="text" className="editor-title" placeholder="Title"
         value={title} onChange={e => setTitle(e.target.value)} />
-
-      {note.archived && <div className="archive-banner">This note is archived. Restore it to keep editing, or delete it for good.</div>}
 
       <CategoryPicker categories={categories} value={category} onSelect={setCategory} onAddCategory={onAddCategory} />
 
