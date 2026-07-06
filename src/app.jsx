@@ -173,7 +173,7 @@ function App() {
           <Dashboard notes={notes} categories={categories} storageOk={storageOk}
             onOpenNote={openNote} />
         ) : (
-          <NotesList notes={notes} categories={categories} onOpenNote={openNote} onOpenArchive={() => setViewingArchive(true)} />
+          <NotesList notes={notes} categories={categories} onOpenNote={openNote} />
         )}
       </div>
 
@@ -294,39 +294,43 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 }
 
 /* ---------- Notes list ---------- */
-function NotesList({ notes, categories, onOpenNote, onOpenArchive }) {
+function NotesList({ notes, categories, onOpenNote }) {
   const [q, setQ] = useState('');
   const [activeFilter, setActiveFilter] = useState(null);
 
+  const showArchive = activeFilter === '__archive__';
   const allReal = notes.filter(n => !n.archived && !isNoteEmpty(n));
   const usedCats = categories.filter(cat => allReal.some(n => n.category === cat));
-  const realNotes = allReal
-    .filter(n => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const archivedNotes = notes.filter(n => n.archived).sort((a, b) => b.updatedAt - a.updatedAt);
+  const realNotes = showArchive
+    ? archivedNotes
+    : allReal.filter(n => (!activeFilter || n.category === activeFilter) && noteMatchesSearch(n, q))
+        .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  function setFilter(f) { setActiveFilter(activeFilter === f ? null : f); }
 
   return (
     <div>
       <div className="topbar">
         <div className="brand"><span className="dot"></span>notes</div>
-        <div className="topbar-actions">
-          <button className="icon-btn-plain" onClick={onOpenArchive} title="archive">{Icon.archive}</button>
-        </div>
       </div>
       <div className="search-box">
         {Icon.search}
         <input type="text" placeholder="Search notes..." value={q} onChange={e => setQ(e.target.value)} />
       </div>
-      {usedCats.length > 0 && (
-        <div className="filter-chips">
-          {usedCats.map(cat => (
-            <div key={cat} className={'filter-chip' + (activeFilter === cat ? ' active' : '')}
-              onClick={() => setActiveFilter(activeFilter === cat ? null : cat)}>
-              {cat}
-            </div>
-          ))}
+      <div className="filter-chips">
+        {usedCats.map(cat => (
+          <div key={cat} className={'filter-chip' + (activeFilter === cat ? ' active' : '')}
+            onClick={() => setFilter(cat)}>
+            {cat}
+          </div>
+        ))}
+        <div className={'filter-chip' + (showArchive ? ' active' : '')}
+          onClick={() => setFilter('__archive__')}>
+          archive
         </div>
-      )}
-      {realNotes.length === 0 && <div className="empty-msg">{q || activeFilter ? 'No matches.' : 'No notes yet.'}</div>}
+      </div>
+      {realNotes.length === 0 && <div className="empty-msg">{showArchive ? 'Archive is empty.' : q || activeFilter ? 'No matches.' : 'No notes yet.'}</div>}
       {realNotes.map(n => (
         <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)}>
           <div className="title">{n.title || 'Untitled'}</div>
