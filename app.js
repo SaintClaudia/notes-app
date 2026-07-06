@@ -233,101 +233,140 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     const visible = realNotes.filter((n) => !n.private);
     if (visible.length === 0) return "All notes are set to private.";
     const sorted = [...visible].sort((a, b) => b.updatedAt - a.updatedAt);
-    const usedCats = [...new Set(visible.map((n) => n.category).filter(Boolean))];
+    function openItems(n) {
+      return n.blocks.filter((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()).map((b) => stripHtml(b.text).trim());
+    }
+    function hasChecklist(n) {
+      return n.blocks.some((b) => b.type === "check" && stripHtml(b.text).trim());
+    }
+    function textLines(n) {
+      return n.blocks.filter((b) => b.type === "text" && !b.done && stripHtml(b.text).trim()).map((b) => stripHtml(b.text).trim());
+    }
     function noteRef(n) {
-      if (n.title?.trim()) return `"${n.title.trim()}"`;
-      const first = n.blocks.find((b) => !b.done && stripHtml(b.text).trim());
-      if (first) {
-        const words = stripHtml(first.text).trim().split(/\s+/).slice(0, 5).join(" ");
-        return `"${words}\u2026"`;
+      const t = n.title?.trim();
+      if (t) return `"${t}"`;
+      const lines = textLines(n);
+      if (lines[0]) {
+        const words = lines[0].split(/\s+/).slice(0, 5).join(" ");
+        return `"${words}${lines[0].split(/\s+/).length > 5 ? "\u2026" : ""}"`;
       }
       return "an untitled note";
     }
-    function openItems(n) {
-      return n.blocks.filter((b) => b.type === "check" && !b.done && stripHtml(b.text).trim());
+    function catOf(n) {
+      return n.category?.trim() || "";
     }
-    function hasAnyTasks(n) {
-      return n.blocks.some((b) => b.type === "check" && stripHtml(b.text).trim());
+    function related(a, b) {
+      if (catOf(a) && catOf(a) === catOf(b)) return true;
+      const aw = (a.title || "").toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+      const bw = (b.title || "").toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+      return aw.some((w) => bw.includes(w));
     }
-    function firstOpenItem(n) {
-      const item = openItems(n)[0];
-      return item ? stripHtml(item.text).trim() : null;
-    }
+    const assigned = /* @__PURE__ */ new Set();
+    const clusters = [];
+    sorted.forEach((n) => {
+      if (assigned.has(n.id)) return;
+      const cluster = [n];
+      assigned.add(n.id);
+      sorted.forEach((m) => {
+        if (!assigned.has(m.id) && related(n, m)) {
+          cluster.push(m);
+          assigned.add(m.id);
+        }
+      });
+      clusters.push(cluster);
+    });
+    const allOpen = sorted.flatMap(openItems);
+    const anyChecklist = sorted.some(hasChecklist);
     const sentences = [];
-    const [recent, second, third, ...rest] = sorted;
-    if (visible.length === 1) {
-      const ref = noteRef(recent);
-      const cat = recent.category?.trim();
-      const open = openItems(recent);
-      const sample = firstOpenItem(recent);
-      let s = `You have one note \u2014 ${ref}`;
-      if (cat) s += `, filed under ${cat}`;
-      s += ".";
-      if (sample) s += ` There are some open ideas in there, like "${sample}."`;
-      else if (hasAnyTasks(recent)) s += ` The planned work in there looks settled.`;
+    if (sorted.length === 1) {
+      const n = sorted[0];
+      const open = openItems(n);
+      const cat = catOf(n);
+      const lines = textLines(n);
+      let s = `You have one note \u2014 ${noteRef(n)}${cat ? `, filed under ${cat}` : ""}.`;
+      if (open.length > 0) {
+        s += ` You left off with some ideas still in motion \u2014 "${open[0]}" might be worth picking back up.`;
+      } else if (lines.length > 0) {
+        s += ` It looks like you've been using it to collect your thoughts.`;
+      } else if (hasChecklist(n)) {
+        s += ` The items you were tracking look like they've been taken care of.`;
+      }
       return s;
     }
-    const recentRef = noteRef(recent);
-    const recentCat = recent.category?.trim();
-    const recentSample = firstOpenItem(recent);
-    let opening = `Here's where things stand: you were most recently in ${recentRef}`;
-    if (recentCat) opening += ` \u2014 a ${recentCat} note`;
-    opening += ".";
-    sentences.push(opening);
-    if (recentSample) {
-      sentences.push(`There are still some open ideas and planned edits in there, like "${recentSample}."`);
-    } else if (hasAnyTasks(recent)) {
-      sentences.push(`The items in ${recentRef} look like they've been taken care of.`);
-    }
-    if (second) {
-      const ref2 = noteRef(second);
-      const cat2 = second.category?.trim();
-      const sample2 = firstOpenItem(second);
-      let s = `You're also keeping ${ref2}`;
-      if (cat2 && cat2 !== recentCat) s += ` under ${cat2}`;
-      if (sample2) s += `, with some next steps \u2014 like "${sample2}"`;
-      else if (hasAnyTasks(second) && openItems(second).length === 0) s += `, which looks settled`;
-      s += ".";
-      sentences.push(s);
-    }
-    if (third) {
-      const ref3 = noteRef(third);
-      const cat3 = third.category?.trim();
-      const sample3 = firstOpenItem(third);
-      let s = `${ref3} is in the mix as well`;
-      if (cat3 && cat3 !== recentCat && cat3 !== second?.category?.trim()) s += `, touching on ${cat3}`;
-      if (sample3) s += `, with some open ideas to revisit`;
-      s += ".";
-      sentences.push(s);
-    }
-    if (rest.length === 1) {
-      sentences.push(`There's also ${noteRef(rest[0])} rounding out your workspace.`);
-    } else if (rest.length > 1) {
-      const extraCats = [...new Set(rest.map((n) => n.category).filter(Boolean))];
-      if (extraCats.length > 0) {
-        sentences.push(`A few more notes round out your workspace, including topics around ${extraCats.slice(0, 2).join(" and ")}.`);
+    if (sorted.length === 2) {
+      const [a, b] = sorted;
+      const aOpen = openItems(a);
+      const bOpen = openItems(b);
+      const sharedCat = catOf(a) && catOf(a) === catOf(b) ? catOf(a) : "";
+      if (related(a, b)) {
+        sentences.push(
+          `Your two notes feel like they're covering different angles of the same area of thinking \u2014 ${noteRef(a)} and ${noteRef(b)}${sharedCat ? `, both under ${sharedCat}` : ""}.`
+        );
       } else {
-        sentences.push(`A few more notes round out your workspace.`);
+        sentences.push(
+          `You have two separate threads going \u2014 ${noteRef(a)}${catOf(a) ? ` (${catOf(a)})` : ""} and ${noteRef(b)}${catOf(b) ? ` (${catOf(b)})` : ""}.`
+        );
       }
-    }
-    if (usedCats.length >= 2) {
-      const activeCats = usedCats.filter((cat) => visible.some((n) => n.category === cat && openItems(n).length > 0));
-      if (activeCats.length >= 2) {
-        sentences.push(`Your active focus seems to be across ${activeCats.slice(0, 2).join(" and ")}.`);
-      } else if (activeCats.length === 1) {
-        sentences.push(`Most of your active work seems centered around ${activeCats[0]}.`);
-      } else {
-        sentences.push(`Your notes span ${usedCats.slice(0, 2).join(" and ")}${usedCats.length > 2 ? " and more" : ""}.`);
+      if (aOpen.length > 0 && bOpen.length > 0) {
+        sentences.push(`Both have some open thinking in them \u2014 "${aOpen[0]}" is one idea you left off on.`);
+      } else if (aOpen.length > 0) {
+        sentences.push(`${noteRef(a)} still has some ideas in motion \u2014 "${aOpen[0]}" is one worth revisiting.`);
+      } else if (bOpen.length > 0) {
+        sentences.push(`${noteRef(b)} has some open thinking in it \u2014 "${bOpen[0]}" is still unresolved.`);
+      } else if (anyChecklist) {
+        sentences.push(`The items you've been tracking look like they're in a good place.`);
       }
+      return sentences.join(" ");
     }
-    const anyOpen = visible.some((n) => openItems(n).length > 0);
-    const anyTasks = visible.some(hasAnyTasks);
-    if (!anyTasks) {
-      sentences.push(`Your notes read more like a running notebook \u2014 collected thoughts and ideas rather than a structured list.`);
-    } else if (!anyOpen) {
-      sentences.push(`Your planned work and open ideas look like they're in good shape across the board.`);
+    const primary = clusters[0];
+    const pCat = catOf(primary[0]);
+    if (primary.length >= 2) {
+      const refs = primary.slice(0, 2).map(noteRef).join(" and ");
+      const pOpen = primary.flatMap(openItems);
+      sentences.push(
+        `Your recent attention has been centered on ${refs}${pCat ? ` \u2014 both part of your ${pCat.toLowerCase()} work` : ", which feel like two sides of the same area of focus"}.`
+      );
+      if (pOpen.length > 0) {
+        sentences.push(`There are still some open ideas running through them \u2014 "${pOpen[0]}" is one thing you left in motion.`);
+      }
     } else {
-      sentences.push(`There are open ideas and next steps scattered across your notes worth coming back to.`);
+      const n = primary[0];
+      const open = openItems(n);
+      const lines = textLines(n);
+      sentences.push(
+        `Your most recent focus has been on ${noteRef(n)}${pCat ? ` \u2014 ${pCat.toLowerCase()} work` : ""}.`
+      );
+      if (open.length > 0) {
+        sentences.push(`You left some ideas open there \u2014 "${open[0]}" looks like something you were actively working through.`);
+      } else if (lines.length > 0 && !hasChecklist(n)) {
+        sentences.push(`It reads more like a thinking space \u2014 collected notes rather than a checklist.`);
+      }
+    }
+    clusters.slice(1).forEach((cluster) => {
+      const cCat = catOf(cluster[0]);
+      const cOpen = cluster.flatMap(openItems);
+      if (cluster.length === 1) {
+        const n = cluster[0];
+        const open = openItems(n);
+        const lines = textLines(n);
+        sentences.push(
+          `${noteRef(n)} is a separate thread${cCat ? ` in your ${cCat.toLowerCase()} space` : ""}` + (open.length > 0 ? ` \u2014 still some open thinking there, like "${open[0]}"` : hasChecklist(n) ? ", and it looks mostly settled" : lines.length > 0 ? " \u2014 more of a space for collected thoughts" : "") + "."
+        );
+      } else {
+        const refs = cluster.slice(0, 2).map(noteRef).join(" and ");
+        sentences.push(
+          `${refs} form a separate thread${cCat ? ` around ${cCat.toLowerCase()}` : ""}` + (cOpen.length > 0 ? `, with some open ideas still in play` : "") + "."
+        );
+      }
+    });
+    const mentioned = sentences.join(" ");
+    if (allOpen.length === 0 && anyChecklist) {
+      sentences.push(`Everything looks settled \u2014 nothing seems urgently unresolved right now.`);
+    } else {
+      const unmentioned = allOpen.find((item) => !mentioned.includes(item));
+      if (unmentioned) {
+        sentences.push(`One other idea that might be worth coming back to: "${unmentioned}".`);
+      }
     }
     return sentences.join(" ");
   }
