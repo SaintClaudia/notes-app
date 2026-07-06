@@ -308,12 +308,20 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
   const [draft, setDraft] = useState("");
   const [editingCat, setEditingCat] = useState(null);
   const [editDraft, setEditDraft] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
   const inputRef = useRef(null);
+  const rowRef = useRef(null);
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
   useEffect(() => {
     if (adding && inputRef.current) inputRef.current.focus();
   }, [adding]);
+  useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!el || expanded) return;
+    setOverflows(el.scrollHeight > el.clientHeight + 4);
+  }, [categories, expanded]);
   function submit() {
     const name = onAddCategory(draft);
     if (name) onSelect(value === name ? "" : name);
@@ -351,7 +359,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
     onDeleteCategory(cat);
     setEditingCat(null);
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "cat-row" }, categories.map((c) => editingCat === c ? /* @__PURE__ */ React.createElement("div", { key: c, style: { display: "flex", gap: 4, alignItems: "center" } }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { ref: rowRef, className: "cat-row" + (!expanded ? " collapsed" : "") }, categories.map((c) => editingCat === c ? /* @__PURE__ */ React.createElement("div", { key: c, style: { display: "flex", gap: 4, alignItems: "center" } }, /* @__PURE__ */ React.createElement(
     "input",
     {
       className: "cat-new-input",
@@ -404,7 +412,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
       },
       onBlur: submit
     }
-  ) : /* @__PURE__ */ React.createElement("div", { className: "cat-pick add", onClick: () => setAdding(true) }, "+ new"));
+  ) : /* @__PURE__ */ React.createElement("div", { className: "cat-pick add", onClick: () => setAdding(true) }, "+ new")), (overflows || expanded) && /* @__PURE__ */ React.createElement("button", { className: "cat-show-more", onClick: () => setExpanded((v) => !v) }, expanded ? "show less \u25B4" : "show more \u25BE"));
 }
 function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, onDeleteCategory, onBack, onSave }) {
   const [blocks, setBlocks] = useState(note.blocks);

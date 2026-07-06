@@ -429,11 +429,20 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
   const [draft, setDraft] = useState('');
   const [editingCat, setEditingCat] = useState(null);
   const [editDraft, setEditDraft] = useState('');
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
   const inputRef = useRef(null);
+  const rowRef = useRef(null);
   const pressTimer = useRef(null);
   const didLongPress = useRef(false);
 
   useEffect(() => { if (adding && inputRef.current) inputRef.current.focus(); }, [adding]);
+
+  useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!el || expanded) return;
+    setOverflows(el.scrollHeight > el.clientHeight + 4);
+  }, [categories, expanded]);
 
   function submit() {
     const name = onAddCategory(draft);
@@ -474,7 +483,8 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
   }
 
   return (
-    <div className="cat-row">
+    <div>
+    <div ref={rowRef} className={'cat-row' + (!expanded ? ' collapsed' : '')}>
       {categories.map(c => (
         editingCat === c ? (
           <div key={c} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -509,6 +519,12 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCa
       ) : (
         <div className="cat-pick add" onClick={() => setAdding(true)}>+ new</div>
       )}
+    </div>
+    {(overflows || expanded) && (
+      <button className="cat-show-more" onClick={() => setExpanded(v => !v)}>
+        {expanded ? 'show less ▴' : 'show more ▾'}
+      </button>
+    )}
     </div>
   );
 }
