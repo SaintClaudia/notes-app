@@ -233,62 +233,103 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     const visible = realNotes.filter((n) => !n.private);
     if (visible.length === 0) return "All notes are set to private.";
     const sorted = [...visible].sort((a, b) => b.updatedAt - a.updatedAt);
-    const recent = sorted[0];
     const usedCats = [...new Set(visible.map((n) => n.category).filter(Boolean))];
-    const allActive = visible.flatMap((n) => n.blocks.filter((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()));
-    const allDone = visible.flatMap((n) => n.blocks.filter((b) => b.type === "check" && b.done && stripHtml(b.text).trim()));
-    const totalTasks = allActive.length + allDone.length;
-    const notesWithOpen = visible.filter((n) => n.blocks.some((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()));
-    const notesAllChecked = visible.filter((n) => {
-      const checks = n.blocks.filter((b) => b.type === "check" && stripHtml(b.text).trim());
-      return checks.length > 0 && checks.every((b) => b.done);
-    });
-    function noteLabel(n) {
-      return n.title?.trim() ? `"${n.title.trim()}"` : null;
-    }
-    const parts = [];
-    if (totalTasks === 0) {
-      parts.push(visible.length === 1 ? "One note, no tasks yet." : `${visible.length} notes, no tasks yet.`);
-    } else if (allActive.length === 0) {
-      parts.push(totalTasks === 1 ? "One task done \u2014 all clear." : `All ${totalTasks} tasks checked off \u2014 fully caught up.`);
-    } else {
-      const pct = allDone.length / totalTasks;
-      if (allDone.length === 0) {
-        parts.push(allActive.length === 1 ? "One task open, just getting started." : `${allActive.length} tasks open, none checked off yet.`);
-      } else if (pct >= 0.8) {
-        parts.push(`Almost done \u2014 ${allActive.length} task${allActive.length !== 1 ? "s" : ""} left out of ${totalTasks}.`);
-      } else if (pct >= 0.5) {
-        parts.push(`Over halfway \u2014 ${allDone.length} of ${totalTasks} tasks done.`);
-      } else {
-        parts.push(`${allDone.length} of ${totalTasks} tasks done, ${allActive.length} to go.`);
+    function noteRef(n) {
+      if (n.title?.trim()) return `"${n.title.trim()}"`;
+      const first = n.blocks.find((b) => !b.done && stripHtml(b.text).trim());
+      if (first) {
+        const words = stripHtml(first.text).trim().split(/\s+/).slice(0, 5).join(" ");
+        return `"${words}\u2026"`;
       }
+      return "an untitled note";
     }
-    if (notesWithOpen.length > 0 && notesAllChecked.length > 0) {
-      parts.push(`${notesWithOpen.length} note${notesWithOpen.length !== 1 ? "s" : ""} in progress, ${notesAllChecked.length} wrapped up.`);
-    } else if (notesWithOpen.length > 1) {
-      parts.push(`Tasks spread across ${notesWithOpen.length} notes.`);
+    function openItems(n) {
+      return n.blocks.filter((b) => b.type === "check" && !b.done && stripHtml(b.text).trim());
     }
-    const recentLabel = noteLabel(recent);
-    if (recentLabel) {
-      const recentActive = recent.blocks.filter((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()).length;
-      const recentDone = recent.blocks.filter((b) => b.type === "check" && b.done && stripHtml(b.text).trim()).length;
-      if (recentActive > 0) {
-        parts.push(`Last working on ${recentLabel} \u2014 ${recentActive} task${recentActive !== 1 ? "s" : ""} left.`);
-      } else if (recentDone > 0) {
-        parts.push(`Last working on ${recentLabel} \u2014 all done there.`);
+    function hasAnyTasks(n) {
+      return n.blocks.some((b) => b.type === "check" && stripHtml(b.text).trim());
+    }
+    function firstOpenItem(n) {
+      const item = openItems(n)[0];
+      return item ? stripHtml(item.text).trim() : null;
+    }
+    const sentences = [];
+    const [recent, second, third, ...rest] = sorted;
+    if (visible.length === 1) {
+      const ref = noteRef(recent);
+      const cat = recent.category?.trim();
+      const open = openItems(recent);
+      const sample = firstOpenItem(recent);
+      let s = `You have one note \u2014 ${ref}`;
+      if (cat) s += `, filed under ${cat}`;
+      s += ".";
+      if (sample) s += ` There are some open ideas in there, like "${sample}."`;
+      else if (hasAnyTasks(recent)) s += ` The planned work in there looks settled.`;
+      return s;
+    }
+    const recentRef = noteRef(recent);
+    const recentCat = recent.category?.trim();
+    const recentSample = firstOpenItem(recent);
+    let opening = `Here's where things stand: you were most recently in ${recentRef}`;
+    if (recentCat) opening += ` \u2014 a ${recentCat} note`;
+    opening += ".";
+    sentences.push(opening);
+    if (recentSample) {
+      sentences.push(`There are still some open ideas and planned edits in there, like "${recentSample}."`);
+    } else if (hasAnyTasks(recent)) {
+      sentences.push(`The items in ${recentRef} look like they've been taken care of.`);
+    }
+    if (second) {
+      const ref2 = noteRef(second);
+      const cat2 = second.category?.trim();
+      const sample2 = firstOpenItem(second);
+      let s = `You're also keeping ${ref2}`;
+      if (cat2 && cat2 !== recentCat) s += ` under ${cat2}`;
+      if (sample2) s += `, with some next steps \u2014 like "${sample2}"`;
+      else if (hasAnyTasks(second) && openItems(second).length === 0) s += `, which looks settled`;
+      s += ".";
+      sentences.push(s);
+    }
+    if (third) {
+      const ref3 = noteRef(third);
+      const cat3 = third.category?.trim();
+      const sample3 = firstOpenItem(third);
+      let s = `${ref3} is in the mix as well`;
+      if (cat3 && cat3 !== recentCat && cat3 !== second?.category?.trim()) s += `, touching on ${cat3}`;
+      if (sample3) s += `, with some open ideas to revisit`;
+      s += ".";
+      sentences.push(s);
+    }
+    if (rest.length === 1) {
+      sentences.push(`There's also ${noteRef(rest[0])} rounding out your workspace.`);
+    } else if (rest.length > 1) {
+      const extraCats = [...new Set(rest.map((n) => n.category).filter(Boolean))];
+      if (extraCats.length > 0) {
+        sentences.push(`A few more notes round out your workspace, including topics around ${extraCats.slice(0, 2).join(" and ")}.`);
       } else {
-        parts.push(`Last working on ${recentLabel}.`);
+        sentences.push(`A few more notes round out your workspace.`);
       }
     }
     if (usedCats.length >= 2) {
-      const activeCats = usedCats.filter(
-        (cat) => visible.some((n) => n.category === cat && n.blocks.some((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()))
-      );
+      const activeCats = usedCats.filter((cat) => visible.some((n) => n.category === cat && openItems(n).length > 0));
       if (activeCats.length >= 2) {
-        parts.push(`Open tasks in ${activeCats.slice(0, 2).join(" and ")}${activeCats.length > 2 ? " and more" : ""}.`);
+        sentences.push(`Your active focus seems to be across ${activeCats.slice(0, 2).join(" and ")}.`);
+      } else if (activeCats.length === 1) {
+        sentences.push(`Most of your active work seems centered around ${activeCats[0]}.`);
+      } else {
+        sentences.push(`Your notes span ${usedCats.slice(0, 2).join(" and ")}${usedCats.length > 2 ? " and more" : ""}.`);
       }
     }
-    return parts.join(" ");
+    const anyOpen = visible.some((n) => openItems(n).length > 0);
+    const anyTasks = visible.some(hasAnyTasks);
+    if (!anyTasks) {
+      sentences.push(`Your notes read more like a running notebook \u2014 collected thoughts and ideas rather than a structured list.`);
+    } else if (!anyOpen) {
+      sentences.push(`Your planned work and open ideas look like they're in good shape across the board.`);
+    } else {
+      sentences.push(`There are open ideas and next steps scattered across your notes worth coming back to.`);
+    }
+    return sentences.join(" ");
   }
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "Snapshot")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
     "div",
