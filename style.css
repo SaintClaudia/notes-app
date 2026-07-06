@@ -21,7 +21,7 @@ html, body { margin: 0; padding: 0; background: #1e1e1e; height: 100%; }
   font-size: 13.5px;
   line-height: 1.55;
 }
-.shell { max-width: 460px; margin: 0 auto; min-height: 100vh; position: relative; display: flex; flex-direction: column; background: var(--bg); }
+.shell { margin: 0 auto; min-height: 100vh; position: relative; display: flex; flex-direction: column; background: var(--bg); }
 .screen { flex: 1; padding: 18px 16px 90px; overflow-y: auto; }
 .topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; min-height: 24px; }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 13px; }
@@ -315,12 +315,6 @@ input[type=password]::placeholder { color: #5a5a5a; }
   flex: 1; font-family: var(--mono); font-size: 16px;
   color: var(--muted); text-decoration: line-through;
   padding: 1px 0; line-height: 1.55;
-}
-
-/* Tablet: full-width shell, standard sticky nav */
-@media (min-width: 600px) {
-  .shell { max-width: none; }
-  .screen { padding: 24px 32px 90px; }
 }
 
 /* Desktop: centered content + floating pill nav */
