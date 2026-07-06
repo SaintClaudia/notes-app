@@ -1,5 +1,5 @@
 const { useState, useEffect, useRef, useCallback, useLayoutEffect } = React;
-const DEFAULT_CATEGORIES = ["Work", "Tasks", "Ideas", "Lists"];
+const DEFAULT_CATEGORIES = ["Ideas", "Lists", "Tasks", "Work"];
 const storageAdapter = {
   async get(key) {
     try {
