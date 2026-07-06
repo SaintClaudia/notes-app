@@ -229,6 +229,17 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .cat-pick:hover { border-color: var(--accent); color: var(--accent); }
 .cat-pick.selected { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
 .cat-pick.add { border-style: dashed; }
+.cat-pick-wrap { position: relative; display: inline-flex; }
+.cat-edit-btn {
+  position: absolute; top: -6px; right: -6px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--panel-alt); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; opacity: 0; pointer-events: none; transition: opacity .12s; color: var(--muted);
+}
+.cat-edit-btn svg { width: 9px; height: 9px; }
+.cat-edit-btn:hover { color: var(--accent); border-color: var(--accent); }
+.cat-pick-wrap:hover .cat-edit-btn, .cat-pick-wrap:focus-within .cat-edit-btn { opacity: 1; pointer-events: auto; }
 .cat-new-input {
   font-size: 16px; padding: 4px 8px; border-radius: 12px; border: 1px solid var(--accent);
   background: var(--bg); color: var(--text); width: 150px; outline: none;

@@ -135,6 +135,7 @@ const Icon = {
   refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
   eye: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
   eyeOff: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+  edit: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
 };
 
 /* ---------- App ---------- */
@@ -854,11 +855,11 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
     <div ref={rowRef} className={'cat-row' + (!expanded ? ' collapsed' : '')}>
       {categories.map(c => (
         editingCat === c ? (
-          <div key={c} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <div key={c} style={{ display: 'flex', gap: 4, alignItems: 'center' }}
+            onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) confirmRename(); }}>
             <input className="cat-new-input" autoFocus value={editDraft} aria-label="Rename category"
               onChange={e => setEditDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setEditingCat(null); }}
-              onBlur={confirmRename} />
+              onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setEditingCat(null); }} />
             <button className="icon-btn-plain" style={{ color: 'var(--danger)', padding: '2px' }}
               onMouseDown={e => e.preventDefault()}
               onClick={() => handleDeleteCat(c)}
@@ -867,17 +868,24 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
             </button>
           </div>
         ) : (
-          <button type="button" key={c} className={'cat-pick' + (selected.includes(c) ? ' selected' : '')}
-            onClick={() => handleChipClick(c)}
-            onMouseDown={() => startPress(c)}
-            onMouseUp={cancelPress}
-            onMouseLeave={cancelPress}
-            onTouchStart={() => startPress(c)}
-            onTouchEnd={cancelPress}
-            onContextMenu={e => e.preventDefault()}
-            aria-pressed={selected.includes(c)}>
-            {c}
-          </button>
+          <div key={c} className="cat-pick-wrap">
+            <button type="button" className={'cat-pick' + (selected.includes(c) ? ' selected' : '')}
+              onClick={() => handleChipClick(c)}
+              onMouseDown={() => startPress(c)}
+              onMouseUp={cancelPress}
+              onMouseLeave={cancelPress}
+              onTouchStart={() => startPress(c)}
+              onTouchEnd={cancelPress}
+              onContextMenu={e => e.preventDefault()}
+              aria-pressed={selected.includes(c)}>
+              {c}
+            </button>
+            <button type="button" className="cat-edit-btn"
+              onClick={() => { setEditingCat(c); setEditDraft(c); }}
+              aria-label={`Edit category "${c}"`}>
+              {Icon.edit}
+            </button>
+          </div>
         )
       ))}
       {adding ? (

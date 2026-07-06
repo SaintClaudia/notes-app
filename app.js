@@ -120,7 +120,8 @@ const Icon = {
   key: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("circle", { cx: "8", cy: "15", r: "5" }), /* @__PURE__ */ React.createElement("line", { x1: "13", y1: "10", x2: "22", y2: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "19", y1: "10", x2: "19", y2: "13" })),
   refresh: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("polyline", { points: "23 4 23 10 17 10" }), /* @__PURE__ */ React.createElement("path", { d: "M20.49 15a9 9 0 1 1-2.12-9.36L23 10" })),
   eye: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" })),
-  eyeOff: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }))
+  eyeOff: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" })),
+  edit: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M12 20h9" }), /* @__PURE__ */ React.createElement("path", { d: "M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" }))
 };
 function App() {
   const [tab, setTab] = useState("dashboard");
@@ -720,35 +721,44 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
     onDeleteCategory(cat);
     setEditingCat(null);
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { ref: rowRef, className: "cat-row" + (!expanded ? " collapsed" : "") }, categories.map((c) => editingCat === c ? /* @__PURE__ */ React.createElement("div", { key: c, style: { display: "flex", gap: 4, alignItems: "center" } }, /* @__PURE__ */ React.createElement(
-    "input",
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { ref: rowRef, className: "cat-row" + (!expanded ? " collapsed" : "") }, categories.map((c) => editingCat === c ? /* @__PURE__ */ React.createElement(
+    "div",
     {
-      className: "cat-new-input",
-      autoFocus: true,
-      value: editDraft,
-      "aria-label": "Rename category",
-      onChange: (e) => setEditDraft(e.target.value),
-      onKeyDown: (e) => {
-        if (e.key === "Enter") confirmRename();
-        if (e.key === "Escape") setEditingCat(null);
-      },
-      onBlur: confirmRename
-    }
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      className: "icon-btn-plain",
-      style: { color: "var(--danger)", padding: "2px" },
-      onMouseDown: (e) => e.preventDefault(),
-      onClick: () => handleDeleteCat(c),
-      "aria-label": `Delete category "${c}"`
+      key: c,
+      style: { display: "flex", gap: 4, alignItems: "center" },
+      onBlur: (e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) confirmRename();
+      }
     },
-    Icon.trash
-  )) : /* @__PURE__ */ React.createElement(
+    /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "cat-new-input",
+        autoFocus: true,
+        value: editDraft,
+        "aria-label": "Rename category",
+        onChange: (e) => setEditDraft(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") confirmRename();
+          if (e.key === "Escape") setEditingCat(null);
+        }
+      }
+    ),
+    /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "icon-btn-plain",
+        style: { color: "var(--danger)", padding: "2px" },
+        onMouseDown: (e) => e.preventDefault(),
+        onClick: () => handleDeleteCat(c),
+        "aria-label": `Delete category "${c}"`
+      },
+      Icon.trash
+    )
+  ) : /* @__PURE__ */ React.createElement("div", { key: c, className: "cat-pick-wrap" }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
-      key: c,
       className: "cat-pick" + (selected.includes(c) ? " selected" : ""),
       onClick: () => handleChipClick(c),
       onMouseDown: () => startPress(c),
@@ -760,7 +770,19 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       "aria-pressed": selected.includes(c)
     },
     c
-  )), adding ? /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "cat-edit-btn",
+      onClick: () => {
+        setEditingCat(c);
+        setEditDraft(c);
+      },
+      "aria-label": `Edit category "${c}"`
+    },
+    Icon.edit
+  ))), adding ? /* @__PURE__ */ React.createElement(
     "input",
     {
       ref: inputRef,
