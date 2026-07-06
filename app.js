@@ -31,6 +31,25 @@ function stripHtml(html) {
   if (!html) return "";
   return html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ");
 }
+function sanitizeHtml(html) {
+  if (!html) return "";
+  const ALLOWED = /* @__PURE__ */ new Set(["b", "strong", "i", "em", "br", "span"]);
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  (function walk(node) {
+    Array.from(node.childNodes).forEach((child) => {
+      if (child.nodeType === 1) {
+        if (!ALLOWED.has(child.tagName.toLowerCase())) {
+          node.replaceChild(document.createTextNode(child.textContent || ""), child);
+        } else {
+          Array.from(child.attributes).forEach((a) => child.removeAttribute(a.name));
+          walk(child);
+        }
+      }
+    });
+  })(tmp);
+  return tmp.innerHTML;
+}
 function isNoteEmpty(n) {
   if (n.title && n.title.trim()) return false;
   return !n.blocks.some((b) => b.text && stripHtml(b.text).trim());
@@ -80,11 +99,6 @@ const Icon = {
   eye: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" })),
   eyeOff: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }))
 };
-function autoGrow(el) {
-  if (!el) return;
-  el.style.height = "auto";
-  el.style.height = el.scrollHeight + "px";
-}
 function App() {
   const [tab, setTab] = useState("dashboard");
   const [notes, setNotes] = useState(null);
@@ -211,13 +225,7 @@ function App() {
 }
 function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
-  const [spinning, setSpinning] = useState(false);
-  function handleRefresh() {
-    setSpinning(true);
-    setTimeout(() => setSpinning(false), 600);
-  }
   const realNotes = notes.filter((n) => !n.archived && !isNoteEmpty(n));
-  const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0);
   const catCounts = categories.map((cat) => ({ cat, count: realNotes.filter((n) => n.category === cat).length })).filter((b) => b.count > 0);
   const filteredNotes = activeFilter ? realNotes.filter((n) => n.category === activeFilter) : realNotes;
   function buildSummary() {
@@ -687,7 +695,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
       setBlocks((prev) => prev.map((b) => b.id === id ? { ...b, type: "check", text: "" } : b));
       return;
     }
-    const normalized = html === "<br>" ? "" : html;
+    const normalized = html === "<br>" ? "" : sanitizeHtml(html);
     setBlocks((prev) => prev.map((b) => b.id === id ? { ...b, text: normalized } : b));
   }
   function completeBlock(id) {
@@ -832,6 +840,6 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
         onKeyDown: (e) => handleBlockKeyDown(e, block, i)
       }
     ));
-  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done", dangerouslySetInnerHTML: { __html: block.text || "" } }))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar", ref: composerRef }, /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: onSave, title: "save & view notes" }, Icon.send)));
+  }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done", dangerouslySetInnerHTML: { __html: sanitizeHtml(block.text || "") } }))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar", ref: composerRef }, /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: onSave, title: "save & view notes" }, Icon.send)));
 }
 ReactDOM.createRoot(document.getElementById("app-root")).render(/* @__PURE__ */ React.createElement(App, null));

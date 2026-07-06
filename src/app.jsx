@@ -26,6 +26,27 @@ function stripHtml(html) {
   return html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ');
 }
 
+// Allowlist-sanitize HTML before storing or rendering — prevents XSS from pasted content
+function sanitizeHtml(html) {
+  if (!html) return '';
+  const ALLOWED = new Set(['b', 'strong', 'i', 'em', 'br', 'span']);
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  (function walk(node) {
+    Array.from(node.childNodes).forEach(child => {
+      if (child.nodeType === 1) {
+        if (!ALLOWED.has(child.tagName.toLowerCase())) {
+          node.replaceChild(document.createTextNode(child.textContent || ''), child);
+        } else {
+          Array.from(child.attributes).forEach(a => child.removeAttribute(a.name));
+          walk(child);
+        }
+      }
+    });
+  })(tmp);
+  return tmp.innerHTML;
+}
+
 function isNoteEmpty(n) {
   if (n.title && n.title.trim()) return false;
   return !n.blocks.some(b => b.text && stripHtml(b.text).trim());
@@ -83,12 +104,6 @@ const Icon = {
   eye: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
   eyeOff: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
 };
-
-function autoGrow(el) {
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = el.scrollHeight + 'px';
-}
 
 /* ---------- App ---------- */
 function App() {
@@ -229,15 +244,8 @@ function App() {
 /* ---------- Dashboard ---------- */
 function Dashboard({ notes, categories, storageOk, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
-  const [spinning, setSpinning] = useState(false);
-
-  function handleRefresh() {
-    setSpinning(true);
-    setTimeout(() => setSpinning(false), 600);
-  }
 
   const realNotes = notes.filter(n => !n.archived && !isNoteEmpty(n));
-  const totalTasks = realNotes.reduce((a, n) => a + noteActiveCount(n), 0); // used in summary text
 
   const catCounts = categories
     .map(cat => ({ cat, count: realNotes.filter(n => n.category === cat).length }))
@@ -795,7 +803,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
       setBlocks(prev => prev.map(b => b.id === id ? { ...b, type: 'check', text: '' } : b));
       return;
     }
-    const normalized = html === '<br>' ? '' : html;
+    const normalized = html === '<br>' ? '' : sanitizeHtml(html);
     setBlocks(prev => prev.map(b => b.id === id ? { ...b, text: normalized } : b));
   }
 
@@ -931,7 +939,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
                 <div className="block-check checked" onClick={() => uncompleteBlock(block.id)}>
                   {Icon.check}
                 </div>
-                <div className="block-text block-text-done" dangerouslySetInnerHTML={{ __html: block.text || '' }} />
+                <div className="block-text block-text-done" dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.text || '') }} />
               </div>
             ))}
           </div>
