@@ -161,8 +161,7 @@ function App() {
             onChange={patch => updateNote(editingNote.id, patch)}
             onAddCategory={addCategory}
             onBack={closeEditor}
-            onSave={saveAndViewNotes}
-            onDelete={() => deleteNote(editingNote.id)} />
+            onSave={saveAndViewNotes} />
         ) : tab === 'dashboard' ? (
           <Dashboard notes={notes} categories={categories} storageOk={storageOk}
             onOpenNote={openNote} />
@@ -418,7 +417,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
 }
 
 /* ---------- Editor ---------- */
-function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onDelete }) {
+function Editor({ note, categories, onChange, onAddCategory, onBack, onSave }) {
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || '');
@@ -524,9 +523,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onD
 
   return (
     <div className="editor-wrap">
-      <div className="editor-topbar">
-        <button className="icon-btn-plain" style={{ marginLeft: 'auto' }} onClick={onDelete} title="delete note">{Icon.trash}</button>
-      </div>
+
 
       <input type="text" className="editor-title" placeholder="Title"
         value={title} onChange={e => setTitle(e.target.value)} />

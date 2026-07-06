@@ -160,8 +160,7 @@ function App() {
       onChange: (patch) => updateNote(editingNote.id, patch),
       onAddCategory: addCategory,
       onBack: closeEditor,
-      onSave: saveAndViewNotes,
-      onDelete: () => deleteNote(editingNote.id)
+      onSave: saveAndViewNotes
     }
   ) : tab === "dashboard" ? /* @__PURE__ */ React.createElement(
     Dashboard,
@@ -310,7 +309,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
     }
   ) : /* @__PURE__ */ React.createElement("div", { className: "cat-pick add", onClick: () => setAdding(true) }, "+ new"));
 }
-function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onDelete }) {
+function Editor({ note, categories, onChange, onAddCategory, onBack, onSave }) {
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || "");
@@ -417,7 +416,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onD
   }
   const activeBlocks = blocks.filter((b) => !b.done);
   const completedBlocks = blocks.filter((b) => b.done);
-  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", style: { marginLeft: "auto" }, onClick: onDelete, title: "delete note" }, Icon.trash)), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
