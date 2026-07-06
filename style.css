@@ -181,6 +181,7 @@ input[type=password]::placeholder { color: #5a5a5a; }
   font-size: 11px; font-family: var(--mono); padding: 4px 10px; border-radius: 12px; cursor: pointer;
   border: 1px solid var(--border); color: var(--muted); background: transparent;
   transition: border-color .12s, color .12s;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
 }
 .filter-chip:hover { border-color: var(--accent); color: var(--text); }
 .filter-chip.active { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
@@ -189,12 +190,13 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .cat-pick {
   font-size: 11px; padding: 4px 10px; border-radius: 12px; cursor: pointer;
   border: 1px solid var(--border); color: var(--muted); background: transparent;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
 }
 .cat-pick:hover { border-color: var(--accent); color: var(--accent); }
 .cat-pick.selected { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
 .cat-pick.add { border-style: dashed; }
 .cat-new-input {
-  font-size: 11px; padding: 4px 8px; border-radius: 12px; border: 1px solid var(--accent);
+  font-size: 16px; padding: 4px 8px; border-radius: 12px; border: 1px solid var(--accent);
   background: var(--bg); color: var(--text); width: 110px; outline: none;
 }
 
