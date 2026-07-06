@@ -219,6 +219,14 @@ input[type=password]::placeholder { color: #5a5a5a; }
 .privacy-btn.active { color: var(--accent); }
 .privacy-btn:hover { color: var(--text); }
 .privacy-label { font-size: 10.5px; color: var(--muted); }
+.toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: #3a3a3c; color: #fff; font-size: 12px; padding: 8px 16px;
+  border-radius: 20px; white-space: nowrap; z-index: 100;
+  animation: toast-in .15s ease;
+  pointer-events: none;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(6px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 .editor-title {
   font-family: var(--mono); font-size: 20px; font-weight: 600;
   background: transparent; color: var(--text);

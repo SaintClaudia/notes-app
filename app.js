@@ -419,6 +419,8 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || "");
   const [isPrivate, setIsPrivate] = useState(note.private || false);
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
   const [leaving, setLeaving] = useState({});
   const [focusTarget, setFocusTarget] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -526,11 +528,16 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     "button",
     {
       className: "privacy-btn" + (isPrivate ? " active" : ""),
-      onClick: () => setIsPrivate((v) => !v)
+      onClick: () => {
+        const next = !isPrivate;
+        setIsPrivate(next);
+        clearTimeout(toastTimer.current);
+        setToast(next ? "Hidden from summary" : "Visible in summary");
+        toastTimer.current = setTimeout(() => setToast(null), 2e3);
+      }
     },
-    isPrivate ? Icon.eyeOff : Icon.eye,
-    isPrivate && /* @__PURE__ */ React.createElement("span", { className: "privacy-label" }, "hidden from summary")
-  )), /* @__PURE__ */ React.createElement(
+    isPrivate ? Icon.eyeOff : Icon.eye
+  )), toast && /* @__PURE__ */ React.createElement("div", { className: "toast" }, toast), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
