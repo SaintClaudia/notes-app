@@ -829,9 +829,37 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     setBlocks(prev => prev.map(b => b.id === id ? { ...b, done: false } : b));
   }
 
+  function handleBlockPointerUp() {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString() : '';
+    if (!text.trim()) return;
+    navigator.clipboard.writeText(text).then(() => {
+      clearTimeout(toastTimer.current);
+      setToast('Copied');
+      toastTimer.current = setTimeout(() => setToast(null), 1500);
+    }).catch(() => {
+      try { document.execCommand('copy'); } catch (e) {}
+    });
+  }
+
   function handleBlockKeyDown(e, block, index) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); document.execCommand('bold'); return; }
     if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); document.execCommand('italic'); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+      e.preventDefault();
+      const orderedEls = blocks.filter(b => !b.done).map(b => refs.current[b.id]).filter(Boolean);
+      if (!orderedEls.length) return;
+      try {
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.setStart(orderedEls[0], 0);
+        const last = orderedEls[orderedEls.length - 1];
+        range.setEnd(last, last.childNodes.length);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (err) {}
+      return;
+    }
 
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -935,6 +963,7 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
                 suppressContentEditableWarning={true}
                 onInput={e => setBlockHtml(block.id, e.currentTarget.innerHTML, e.currentTarget)}
                 onKeyDown={e => handleBlockKeyDown(e, block, i)}
+                onPointerUp={handleBlockPointerUp}
               />
             </div>
           );

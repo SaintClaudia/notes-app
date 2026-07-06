@@ -716,6 +716,21 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
   function uncompleteBlock(id) {
     setBlocks((prev) => prev.map((b) => b.id === id ? { ...b, done: false } : b));
   }
+  function handleBlockPointerUp() {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString() : "";
+    if (!text.trim()) return;
+    navigator.clipboard.writeText(text).then(() => {
+      clearTimeout(toastTimer.current);
+      setToast("Copied");
+      toastTimer.current = setTimeout(() => setToast(null), 1500);
+    }).catch(() => {
+      try {
+        document.execCommand("copy");
+      } catch (e) {
+      }
+    });
+  }
   function handleBlockKeyDown(e, block, index) {
     if ((e.metaKey || e.ctrlKey) && e.key === "b") {
       e.preventDefault();
@@ -725,6 +740,22 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
     if ((e.metaKey || e.ctrlKey) && e.key === "i") {
       e.preventDefault();
       document.execCommand("italic");
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "a") {
+      e.preventDefault();
+      const orderedEls = blocks.filter((b) => !b.done).map((b) => refs.current[b.id]).filter(Boolean);
+      if (!orderedEls.length) return;
+      try {
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.setStart(orderedEls[0], 0);
+        const last = orderedEls[orderedEls.length - 1];
+        range.setEnd(last, last.childNodes.length);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (err) {
+      }
       return;
     }
     if (e.key === "Enter") {
@@ -841,7 +872,8 @@ function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, o
         contentEditable: "true",
         suppressContentEditableWarning: true,
         onInput: (e) => setBlockHtml(block.id, e.currentTarget.innerHTML, e.currentTarget),
-        onKeyDown: (e) => handleBlockKeyDown(e, block, i)
+        onKeyDown: (e) => handleBlockKeyDown(e, block, i),
+        onPointerUp: handleBlockPointerUp
       }
     ));
   }), completedBlocks.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "completed-section" }, /* @__PURE__ */ React.createElement("div", { className: "completed-header", onClick: () => setShowCompleted((v) => !v) }, showCompleted ? "\u25BE" : "\u25B8", " Completed (", completedBlocks.length, ")"), showCompleted && completedBlocks.map((block) => /* @__PURE__ */ React.createElement("div", { className: "block-row", key: block.id }, /* @__PURE__ */ React.createElement("div", { className: "block-check checked", onClick: () => uncompleteBlock(block.id) }, Icon.check), /* @__PURE__ */ React.createElement("div", { className: "block-text block-text-done", dangerouslySetInnerHTML: { __html: sanitizeHtml(block.text || "") } }))))), /* @__PURE__ */ React.createElement("div", { className: "compose-bar", ref: composerRef }, /* @__PURE__ */ React.createElement("button", { className: "send-btn", onClick: onSave, title: "save & view notes" }, Icon.send)));
