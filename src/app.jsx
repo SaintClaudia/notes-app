@@ -35,6 +35,24 @@ function noteActiveCount(n) {
   return n.blocks.filter(b => b.type === 'check' && !b.done && b.text && b.text.trim()).length;
 }
 
+function noteSummary(n) {
+  const active = n.blocks.filter(b => b.type === 'check' && !b.done && b.text?.trim());
+  const done = n.blocks.filter(b => b.type === 'check' && b.done && b.text?.trim());
+  const texts = n.blocks.filter(b => b.type === 'text' && b.text?.trim());
+  const total = active.length + done.length;
+  if (total > 0 && texts.length === 0) {
+    return done.length === 0
+      ? `${active.length} task${active.length !== 1 ? 's' : ''}`
+      : `${done.length} of ${total} done`;
+  }
+  if (texts.length > 0) {
+    const first = texts[0].text.trim();
+    const preview = first.length > 80 ? first.slice(0, 80) + '…' : first;
+    return total > 0 ? `${preview} · ${active.length} task${active.length !== 1 ? 's' : ''}` : preview;
+  }
+  return 'Empty note';
+}
+
 function noteMatchesSearch(n, q) {
   if (!q) return true;
   const hay = (n.title + ' ' + n.category + ' ' + n.blocks.map(b => b.text).join(' ')).toLowerCase();
@@ -311,12 +329,23 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
         {[...filteredNotes].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5).map(n => (
           <div className="note-card" key={n.id} onClick={() => onOpenNote(n.id)} style={{ marginBottom: 8 }}>
             <div className="note-card-body">
-              <div className="title">{n.title || 'Untitled'}</div>
-              <div className="snippet">{noteSnippet(n)}</div>
-              <div className="meta-row">
-                <span className="meta">{n.category && <span className="cat-tag">{n.category}</span>}</span>
-                {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
-              </div>
+              {n.private ? (
+                <>
+                  <div className="title">{n.title || 'Private note'}</div>
+                  <div className="private-snippet">
+                    {Icon.eyeOff}<span>private</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="title">{n.title || 'Untitled'}</div>
+                  <div className="snippet">{noteSummary(n)}</div>
+                  <div className="meta-row">
+                    <span className="meta">{n.category && <span className="cat-tag">{n.category}</span>}</span>
+                    {noteActiveCount(n) > 0 && <span className="badge">{noteActiveCount(n)} active</span>}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ))}
