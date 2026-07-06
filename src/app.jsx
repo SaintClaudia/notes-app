@@ -223,9 +223,11 @@ function App() {
 
   function renameCategory(oldName, newName) {
     const clean = newName.trim();
-    if (!clean || clean === oldName || categories.includes(clean)) return;
+    if (!clean || clean === oldName) return 'noop';
+    if (categories.includes(clean)) return 'duplicate';
     persistCategories(categories.map(c => c === oldName ? clean : c));
     persist(notes.map(n => n.tags.includes(oldName) ? { ...n, tags: n.tags.map(t => t === oldName ? clean : t) } : n));
+    return 'ok';
   }
 
   function deleteCategory(name) {
@@ -797,11 +799,13 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
   const [draft, setDraft] = useState('');
   const [editingCat, setEditingCat] = useState(null);
   const [editDraft, setEditDraft] = useState('');
+  const [renameError, setRenameError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
   const inputRef = useRef(null);
   const rowRef = useRef(null);
   const pressTimer = useRef(null);
+  const renameErrorTimer = useRef(null);
   const didLongPress = useRef(false);
 
   useEffect(() => { if (adding && inputRef.current) inputRef.current.focus(); }, [adding]);
@@ -825,6 +829,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       didLongPress.current = true;
       setEditingCat(cat);
       setEditDraft(cat);
+      setRenameError(null);
     }, 500);
   }
 
@@ -837,10 +842,23 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
 
   function confirmRename() {
     const clean = editDraft.trim();
-    if (clean && clean !== editingCat) {
-      onRenameCategory(editingCat, clean);
-      if (selected.includes(editingCat)) onSelectedChange(selected.map(c => c === editingCat ? clean : c));
+    const result = onRenameCategory(editingCat, clean);
+    if (result === 'duplicate') {
+      clearTimeout(renameErrorTimer.current);
+      setRenameError(`A tag named "${clean}" already exists`);
+      renameErrorTimer.current = setTimeout(() => setRenameError(null), 2500);
+      return;
     }
+    if (result === 'ok' && selected.includes(editingCat)) {
+      onSelectedChange(selected.map(c => c === editingCat ? clean : c));
+    }
+    setEditingCat(null);
+    setRenameError(null);
+  }
+
+  function cancelRename() {
+    clearTimeout(renameErrorTimer.current);
+    setRenameError(null);
     setEditingCat(null);
   }
 
@@ -858,8 +876,8 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
           <div key={c} style={{ display: 'flex', gap: 4, alignItems: 'center' }}
             onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) confirmRename(); }}>
             <input className="cat-new-input" autoFocus value={editDraft} aria-label="Rename category"
-              onChange={e => setEditDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setEditingCat(null); }} />
+              onChange={e => { setEditDraft(e.target.value); if (renameError) setRenameError(null); }}
+              onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') cancelRename(); }} />
             <button className="icon-btn-plain" style={{ color: 'var(--danger)', padding: '2px' }}
               onMouseDown={e => e.preventDefault()}
               onClick={() => handleDeleteCat(c)}
@@ -881,7 +899,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
               {c}
             </button>
             <button type="button" className="cat-edit-btn"
-              onClick={() => { setEditingCat(c); setEditDraft(c); }}
+              onClick={() => { setEditingCat(c); setEditDraft(c); setRenameError(null); }}
               aria-label={`Edit category "${c}"`}>
               {Icon.edit}
             </button>
@@ -902,6 +920,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
         {expanded ? 'show less ▴' : 'show more ▾'}
       </button>
     )}
+    {renameError && <div className="toast" role="status" aria-live="polite">{renameError}</div>}
     </div>
   );
 }

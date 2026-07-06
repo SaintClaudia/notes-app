@@ -210,9 +210,11 @@ function App() {
   }
   function renameCategory(oldName, newName) {
     const clean = newName.trim();
-    if (!clean || clean === oldName || categories.includes(clean)) return;
+    if (!clean || clean === oldName) return "noop";
+    if (categories.includes(clean)) return "duplicate";
     persistCategories(categories.map((c) => c === oldName ? clean : c));
     persist(notes.map((n) => n.tags.includes(oldName) ? { ...n, tags: n.tags.map((t) => t === oldName ? clean : t) } : n));
+    return "ok";
   }
   function deleteCategory(name) {
     persistCategories(categories.filter((c) => c !== name));
@@ -670,11 +672,13 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
   const [draft, setDraft] = useState("");
   const [editingCat, setEditingCat] = useState(null);
   const [editDraft, setEditDraft] = useState("");
+  const [renameError, setRenameError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
   const inputRef = useRef(null);
   const rowRef = useRef(null);
   const pressTimer = useRef(null);
+  const renameErrorTimer = useRef(null);
   const didLongPress = useRef(false);
   useEffect(() => {
     if (adding && inputRef.current) inputRef.current.focus();
@@ -696,6 +700,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       didLongPress.current = true;
       setEditingCat(cat);
       setEditDraft(cat);
+      setRenameError(null);
     }, 500);
   }
   function cancelPress() {
@@ -710,10 +715,22 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
   }
   function confirmRename() {
     const clean = editDraft.trim();
-    if (clean && clean !== editingCat) {
-      onRenameCategory(editingCat, clean);
-      if (selected.includes(editingCat)) onSelectedChange(selected.map((c) => c === editingCat ? clean : c));
+    const result = onRenameCategory(editingCat, clean);
+    if (result === "duplicate") {
+      clearTimeout(renameErrorTimer.current);
+      setRenameError(`A tag named "${clean}" already exists`);
+      renameErrorTimer.current = setTimeout(() => setRenameError(null), 2500);
+      return;
     }
+    if (result === "ok" && selected.includes(editingCat)) {
+      onSelectedChange(selected.map((c) => c === editingCat ? clean : c));
+    }
+    setEditingCat(null);
+    setRenameError(null);
+  }
+  function cancelRename() {
+    clearTimeout(renameErrorTimer.current);
+    setRenameError(null);
     setEditingCat(null);
   }
   function handleDeleteCat(cat) {
@@ -737,10 +754,13 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
         autoFocus: true,
         value: editDraft,
         "aria-label": "Rename category",
-        onChange: (e) => setEditDraft(e.target.value),
+        onChange: (e) => {
+          setEditDraft(e.target.value);
+          if (renameError) setRenameError(null);
+        },
         onKeyDown: (e) => {
           if (e.key === "Enter") confirmRename();
-          if (e.key === "Escape") setEditingCat(null);
+          if (e.key === "Escape") cancelRename();
         }
       }
     ),
@@ -778,6 +798,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       onClick: () => {
         setEditingCat(c);
         setEditDraft(c);
+        setRenameError(null);
       },
       "aria-label": `Edit category "${c}"`
     },
@@ -800,7 +821,7 @@ function CategoryPicker({ categories, selected, onSelectedChange, onAddCategory,
       },
       onBlur: submit
     }
-  ) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "cat-pick add", onClick: () => setAdding(true) }, "+ new")), (overflows || expanded) && /* @__PURE__ */ React.createElement("button", { className: "cat-show-more", onClick: () => setExpanded((v) => !v) }, expanded ? "show less \u25B4" : "show more \u25BE"));
+  ) : /* @__PURE__ */ React.createElement("button", { type: "button", className: "cat-pick add", onClick: () => setAdding(true) }, "+ new")), (overflows || expanded) && /* @__PURE__ */ React.createElement("button", { className: "cat-show-more", onClick: () => setExpanded((v) => !v) }, expanded ? "show less \u25B4" : "show more \u25BE"), renameError && /* @__PURE__ */ React.createElement("div", { className: "toast", role: "status", "aria-live": "polite" }, renameError));
 }
 function caretAtFirstLine(el) {
   const sel = window.getSelection();
