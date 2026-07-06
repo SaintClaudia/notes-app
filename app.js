@@ -417,7 +417,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onD
   }
   const activeBlocks = blocks.filter((b) => !b.done);
   const completedBlocks = blocks.filter((b) => b.done);
-  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onBack }, Icon.back), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: onDelete, title: "delete note" }, Icon.trash)), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "editor-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "editor-topbar" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", style: { marginLeft: "auto" }, onClick: onDelete, title: "delete note" }, Icon.trash)), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",

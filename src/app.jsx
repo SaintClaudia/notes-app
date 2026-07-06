@@ -525,8 +525,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onD
   return (
     <div className="editor-wrap">
       <div className="editor-topbar">
-        <button className="icon-btn-plain" onClick={onBack}>{Icon.back}</button>
-        <button className="icon-btn-plain" onClick={onDelete} title="delete note">{Icon.trash}</button>
+        <button className="icon-btn-plain" style={{ marginLeft: 'auto' }} onClick={onDelete} title="delete note">{Icon.trash}</button>
       </div>
 
       <input type="text" className="editor-title" placeholder="Title"
