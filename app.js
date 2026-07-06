@@ -143,6 +143,16 @@ function App() {
     persistCategories([...categories, clean]);
     return clean;
   }
+  function renameCategory(oldName, newName) {
+    const clean = newName.trim();
+    if (!clean || clean === oldName || categories.includes(clean)) return;
+    persistCategories(categories.map((c) => c === oldName ? clean : c));
+    persist(notes.map((n) => n.category === oldName ? { ...n, category: clean } : n));
+  }
+  function deleteCategory(name) {
+    persistCategories(categories.filter((c) => c !== name));
+    persist(notes.map((n) => n.category === name ? { ...n, category: "" } : n));
+  }
   const editingNote = editingId ? notes.find((n) => n.id === editingId) : null;
   function navigate(newTab) {
     closeEditor();
@@ -159,6 +169,8 @@ function App() {
       categories,
       onChange: (patch) => updateNote(editingNote.id, patch),
       onAddCategory: addCategory,
+      onRenameCategory: renameCategory,
+      onDeleteCategory: deleteCategory,
       onBack: closeEditor,
       onSave: saveAndViewNotes
     }
@@ -269,10 +281,14 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany }) {
     /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, new Date(n.updatedAt).toLocaleDateString(), n.category && /* @__PURE__ */ React.createElement("span", { className: "cat-tag" }, n.category)), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active")))
   )));
 }
-function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
+function CategoryPicker({ categories, value, onSelect, onAddCategory, onRenameCategory, onDeleteCategory }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
+  const [editingCat, setEditingCat] = useState(null);
+  const [editDraft, setEditDraft] = useState("");
   const inputRef = useRef(null);
+  const pressTimer = useRef(null);
+  const didLongPress = useRef(false);
   useEffect(() => {
     if (adding && inputRef.current) inputRef.current.focus();
   }, [adding]);
@@ -282,12 +298,71 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
     setDraft("");
     setAdding(false);
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "cat-row" }, categories.map((c) => /* @__PURE__ */ React.createElement(
+  function startPress(cat) {
+    didLongPress.current = false;
+    pressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      setEditingCat(cat);
+      setEditDraft(cat);
+    }, 500);
+  }
+  function cancelPress() {
+    clearTimeout(pressTimer.current);
+  }
+  function handleChipClick(cat) {
+    if (didLongPress.current) {
+      didLongPress.current = false;
+      return;
+    }
+    onSelect(value === cat ? "" : cat);
+  }
+  function confirmRename() {
+    const clean = editDraft.trim();
+    if (clean && clean !== editingCat) {
+      onRenameCategory(editingCat, clean);
+      if (value === editingCat) onSelect(clean);
+    }
+    setEditingCat(null);
+  }
+  function handleDeleteCat(cat) {
+    if (value === cat) onSelect("");
+    onDeleteCategory(cat);
+    setEditingCat(null);
+  }
+  return /* @__PURE__ */ React.createElement("div", { className: "cat-row" }, categories.map((c) => editingCat === c ? /* @__PURE__ */ React.createElement("div", { key: c, style: { display: "flex", gap: 4, alignItems: "center" } }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      className: "cat-new-input",
+      autoFocus: true,
+      value: editDraft,
+      onChange: (e) => setEditDraft(e.target.value),
+      onKeyDown: (e) => {
+        if (e.key === "Enter") confirmRename();
+        if (e.key === "Escape") setEditingCat(null);
+      },
+      onBlur: confirmRename
+    }
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      className: "icon-btn-plain",
+      style: { color: "var(--danger)", padding: "2px" },
+      onMouseDown: (e) => e.preventDefault(),
+      onClick: () => handleDeleteCat(c)
+    },
+    Icon.trash
+  )) : /* @__PURE__ */ React.createElement(
     "div",
     {
       key: c,
       className: "cat-pick" + (value === c ? " selected" : ""),
-      onClick: () => onSelect(value === c ? "" : c)
+      onClick: () => handleChipClick(c),
+      onMouseDown: () => startPress(c),
+      onMouseUp: cancelPress,
+      onMouseLeave: cancelPress,
+      onTouchStart: () => startPress(c),
+      onTouchEnd: cancelPress,
+      onContextMenu: (e) => e.preventDefault()
     },
     c
   )), adding ? /* @__PURE__ */ React.createElement(
@@ -309,7 +384,7 @@ function CategoryPicker({ categories, value, onSelect, onAddCategory }) {
     }
   ) : /* @__PURE__ */ React.createElement("div", { className: "cat-pick add", onClick: () => setAdding(true) }, "+ new"));
 }
-function Editor({ note, categories, onChange, onAddCategory, onBack, onSave }) {
+function Editor({ note, categories, onChange, onAddCategory, onRenameCategory, onDeleteCategory, onBack, onSave }) {
   const [blocks, setBlocks] = useState(note.blocks);
   const [title, setTitle] = useState(note.title);
   const [category, setCategory] = useState(note.category || "");
@@ -425,7 +500,17 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave }) {
       value: title,
       onChange: (e) => setTitle(e.target.value)
     }
-  ), /* @__PURE__ */ React.createElement(CategoryPicker, { categories, value: category, onSelect: setCategory, onAddCategory }), /* @__PURE__ */ React.createElement("div", { className: "editor-body", onClick: (e) => {
+  ), /* @__PURE__ */ React.createElement(
+    CategoryPicker,
+    {
+      categories,
+      value: category,
+      onSelect: setCategory,
+      onAddCategory,
+      onRenameCategory,
+      onDeleteCategory
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "editor-body", onClick: (e) => {
     if (e.target === e.currentTarget) addBlock();
   } }, activeBlocks.length === 0 && completedBlocks.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { cursor: "text" }, onClick: addBlock }, "Tap to start writing..."), activeBlocks.map((block) => {
     const i = blocks.findIndex((b) => b.id === block.id);
