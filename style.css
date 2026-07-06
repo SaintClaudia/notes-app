@@ -323,14 +323,14 @@ input[type=password]::placeholder { color: #5a5a5a; }
   .compose-bar { right: max(32px, calc((100vw - 1080px) / 2 + 32px)); }
   .bottom-nav {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    border-radius: 0;
-    border-top: 1px solid var(--border);
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 24px;
+    width: 440px;
+    border-radius: 28px;
+    border-top: none;
+    border: 1px solid var(--border);
     padding-bottom: 0;
     overflow: visible;
-    transform: none;
   }
 }
