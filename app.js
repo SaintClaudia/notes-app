@@ -268,6 +268,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
   const [offsetX, setOffsetX] = useState(0);
   const [snap, setSnap] = useState(false);
   const [open, setOpen] = useState(false);
+  const [actionsVisible, setActionsVisible] = useState(true);
   const REVEAL = 112;
   const startX = useRef(0);
   const startY = useRef(0);
@@ -324,6 +325,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
     setOpen(false);
   }
   function handleDelete() {
+    setActionsVisible(false);
     setSnap(true);
     setOffsetX(-500);
     setTimeout(() => {
@@ -331,6 +333,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
       setOffsetX(0);
       setSnap(false);
       setOpen(false);
+      setActionsVisible(true);
     }, 220);
   }
   function handlePin() {
@@ -350,7 +353,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
         close();
       }
     },
-    /* @__PURE__ */ React.createElement(
+    actionsVisible && /* @__PURE__ */ React.createElement(
       "div",
       {
         style: { position: "absolute", right: 0, top: 0, bottom: 0, width: REVEAL, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 },

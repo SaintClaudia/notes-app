@@ -359,6 +359,7 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
   const [offsetX, setOffsetX] = useState(0);
   const [snap, setSnap] = useState(false);
   const [open, setOpen] = useState(false);
+  const [actionsVisible, setActionsVisible] = useState(true);
   const REVEAL = 112;
   const startX = useRef(0);
   const startY = useRef(0);
@@ -415,9 +416,10 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
   }
 
   function handleDelete() {
+    setActionsVisible(false);
     setSnap(true);
     setOffsetX(-500);
-    setTimeout(() => { onSwipeDelete(); setOffsetX(0); setSnap(false); setOpen(false); }, 220);
+    setTimeout(() => { onSwipeDelete(); setOffsetX(0); setSnap(false); setOpen(false); setActionsVisible(true); }, 220);
   }
 
   function handlePin() {
@@ -431,11 +433,13 @@ function SwipeableCard({ onSwipeDelete, onSwipePin, pinned, disabled, children }
     <div ref={cardRef} style={{ position: 'relative', marginBottom: 10 }}
       onTouchStart={onStart} onTouchEnd={onEnd}
       onTouchCancel={() => { active.current = false; close(); }}>
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-        onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
-        <button className="swipe-action-btn swipe-delete" onClick={handleDelete}>{Icon.trash}</button>
-        <button className="swipe-action-btn swipe-pin" onClick={handlePin}>{Icon.pin}</button>
-      </div>
+      {actionsVisible && (
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REVEAL, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+          onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
+          <button className="swipe-action-btn swipe-delete" onClick={handleDelete}>{Icon.trash}</button>
+          <button className="swipe-action-btn swipe-pin" onClick={handlePin}>{Icon.pin}</button>
+        </div>
+      )}
       <div className={'swipe-inner' + (swiped ? ' swiped' : '')}
         style={{ transform: `translateX(${offsetX}px)`, transition: snap ? 'transform .22s ease' : 'none', willChange: 'transform' }}
         onClick={open ? close : undefined}>
