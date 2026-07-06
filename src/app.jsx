@@ -92,6 +92,17 @@ function noteMatchesSearch(n, q) {
   return words.every(w => hay.includes(w));
 }
 
+// Wraps whichever search words appear in text with <mark> so results show why they matched
+function highlightMatches(text, q) {
+  const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return text;
+  const pattern = new RegExp('(' + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'ig');
+  const parts = text.split(pattern);
+  return parts.map((part, i) =>
+    words.includes(part.toLowerCase()) ? <mark className="search-highlight" key={i}>{part}</mark> : part
+  );
+}
+
 /* ---------- icons ---------- */
 const Icon = {
   grid: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>,
@@ -694,7 +705,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
       {!isEditing && (
         <div className="search-box">
           {Icon.search}
-          <input type="text" placeholder="Search notes..." value={q} onChange={e => setQ(e.target.value)} />
+          <input type="text" placeholder="Search notes..." value={q} onChange={e => setQ(e.target.value)} autoFocus />
         </div>
       )}
       {!isEditing && usedCats.length > 0 && (
@@ -723,8 +734,8 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
               <div className={'select-circle' + (selected.has(n.id) ? ' checked' : '')} />
             )}
             <div className="note-card-body">
-              <div className="title">{n.title || 'Untitled'}</div>
-              <div className="snippet">{noteSnippet(n)}</div>
+              <div className="title">{n.title ? (q.trim() ? highlightMatches(n.title, q) : n.title) : 'Untitled'}</div>
+              <div className="snippet">{q.trim() ? highlightMatches(noteSnippet(n), q) : noteSnippet(n)}</div>
               <div className="meta-row">
                 <span className="meta">
                   {n.tags.map(t => <span className="cat-tag" key={t}>{t}</span>)}

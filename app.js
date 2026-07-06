@@ -86,6 +86,15 @@ function noteMatchesSearch(n, q) {
   const words = q.toLowerCase().trim().split(/\s+/);
   return words.every((w) => hay.includes(w));
 }
+function highlightMatches(text, q) {
+  const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return text;
+  const pattern = new RegExp("(" + words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "ig");
+  const parts = text.split(pattern);
+  return parts.map(
+    (part, i) => words.includes(part.toLowerCase()) ? /* @__PURE__ */ React.createElement("mark", { className: "search-highlight", key: i }, part) : part
+  );
+}
 const Icon = {
   grid: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "13", y: "3", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "3", y: "13", width: "8", height: "8", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "13", y: "13", width: "8", height: "8", rx: "1.5" })),
   plus: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "5", x2: "12", y2: "19" }), /* @__PURE__ */ React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" })),
@@ -572,7 +581,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
       title: "delete selected"
     },
     Icon.trash
-  ), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: exitEdit }, "done")) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setIsEditing(true) }, "edit"))), !isEditing && /* @__PURE__ */ React.createElement("div", { className: "search-box" }, Icon.search, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search notes...", value: q, onChange: (e) => setQ(e.target.value) })), !isEditing && usedCats.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-chips" }, usedCats.map((cat) => /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: exitEdit }, "done")) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setIsEditing(true) }, "edit"))), !isEditing && /* @__PURE__ */ React.createElement("div", { className: "search-box" }, Icon.search, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search notes...", value: q, onChange: (e) => setQ(e.target.value), autoFocus: true })), !isEditing && usedCats.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-chips" }, usedCats.map((cat) => /* @__PURE__ */ React.createElement(
     "div",
     {
       key: cat,
@@ -597,7 +606,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
         onClick: () => handleCardTap(n.id)
       },
       isEditing && /* @__PURE__ */ React.createElement("div", { className: "select-circle" + (selected.has(n.id) ? " checked" : "") }),
-      /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.tags.map((t) => /* @__PURE__ */ React.createElement("span", { className: "cat-tag", key: t }, t))), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))),
+      /* @__PURE__ */ React.createElement("div", { className: "note-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "title" }, n.title ? q.trim() ? highlightMatches(n.title, q) : n.title : "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "snippet" }, q.trim() ? highlightMatches(noteSnippet(n), q) : noteSnippet(n)), /* @__PURE__ */ React.createElement("div", { className: "meta-row" }, /* @__PURE__ */ React.createElement("span", { className: "meta" }, n.tags.map((t) => /* @__PURE__ */ React.createElement("span", { className: "cat-tag", key: t }, t))), noteActiveCount(n) > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge" }, noteActiveCount(n), " active"))),
       !isEditing && /* @__PURE__ */ React.createElement(
         "button",
         {
