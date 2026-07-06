@@ -189,6 +189,20 @@ function App() {
 
   return (
     <div className="shell">
+      <div className="bottom-nav">
+        <div className="nav-brand"><span className="dot"></span>notes</div>
+        <div className={'nav-item nav-item-dash' + (!editingNote && tab === 'dashboard' ? ' active' : '')} onClick={() => navigate('dashboard')}>
+          {Icon.grid}<span className="nav-label">dashboard</span>
+        </div>
+        <div className={'nav-item nav-item-notes' + (!editingNote && tab === 'notes' ? ' active' : '')} onClick={() => navigate('notes')}>
+          {Icon.list}<span className="nav-label">notes</span>
+        </div>
+        <div className="nav-item nav-item-create" onClick={openNewNote}>
+          <button className="nav-create-btn">{Icon.plus}</button>
+          <span className="nav-new-label">new note</span>
+        </div>
+      </div>
+
       <div className="screen">
         {editingNote ? (
           <Editor note={editingNote} categories={categories}
@@ -204,20 +218,6 @@ function App() {
         ) : (
           <NotesList notes={notes} categories={categories} onOpenNote={openNote} onDeleteMany={deleteMany} onPinNote={pinNote} />
         )}
-      </div>
-
-      <div className="bottom-nav">
-        <div className="nav-brand"><span className="dot"></span>notes</div>
-        <div className={'nav-item nav-item-dash' + (!editingNote && tab === 'dashboard' ? ' active' : '')} onClick={() => navigate('dashboard')}>
-          {Icon.grid}<span className="nav-label">dashboard</span>
-        </div>
-        <div className={'nav-item nav-item-notes' + (!editingNote && tab === 'notes' ? ' active' : '')} onClick={() => navigate('notes')}>
-          {Icon.list}<span className="nav-label">notes</span>
-        </div>
-        <div className="nav-item nav-item-create" onClick={openNewNote}>
-          <button className="nav-create-btn">{Icon.plus}</button>
-          <span className="nav-new-label">new note</span>
-        </div>
       </div>
     </div>
   );
