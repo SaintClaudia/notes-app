@@ -201,31 +201,37 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     if (realNotes.length === 0) return "No notes yet \u2014 tap + to start one.";
     const visible = realNotes.filter((n) => !n.private);
     if (visible.length === 0) return "All notes are set to private.";
-    const lines = [];
-    const grouped = {};
-    visible.forEach((n) => {
-      const key = n.category || "";
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(n);
-    });
-    Object.entries(grouped).forEach(([cat, notes2]) => {
-      const descs = notes2.map((n) => {
-        const title = n.title?.trim();
-        const firstText = n.blocks.find((b) => !b.done && b.text?.trim())?.text.trim() || "";
-        if (title && firstText) return `${title} \u2014 ${firstText}`;
-        return title || firstText || "Untitled";
-      });
-      lines.push(cat ? `${cat}: ${descs.join(", ")}.` : descs.join(", ") + ".");
-    });
+    const sorted = [...visible].sort((a, b) => b.updatedAt - a.updatedAt);
     const tasks = visible.flatMap(
       (n) => n.blocks.filter((b) => b.type === "check" && !b.done && b.text?.trim())
     ).map((b) => b.text.trim());
-    if (tasks.length > 0) {
-      const shown = tasks.slice(0, 4);
-      const extra = tasks.length - shown.length;
-      lines.push(`Active: ${shown.join(", ")}${extra > 0 ? ` +${extra} more` : ""}.`);
+    function noteTitle(n) {
+      return n.title?.trim() || n.blocks.find((b) => b.text?.trim())?.text.trim() || "an untitled note";
     }
-    return lines.join("\n");
+    function noteDesc(n) {
+      const title = n.title?.trim();
+      const first = n.blocks.find((b) => !b.done && b.text?.trim())?.text.trim() || "";
+      if (title && first) return `${title} \u2014 ${first}`;
+      return title || first || "an untitled note";
+    }
+    const [recent, ...rest] = sorted;
+    const parts = [];
+    parts.push(`You were last working on ${noteDesc(recent)}.`);
+    if (rest.length === 1) {
+      parts.push(`You also have ${noteTitle(rest[0])}.`);
+    } else if (rest.length === 2) {
+      parts.push(`You also have ${noteTitle(rest[0])} and ${noteTitle(rest[1])}.`);
+    } else if (rest.length > 2) {
+      parts.push(`You also have ${noteTitle(rest[0])}, ${noteTitle(rest[1])}, and ${rest.length - 2} more.`);
+    }
+    if (tasks.length === 1) {
+      parts.push(`Still to do: ${tasks[0]}.`);
+    } else if (tasks.length === 2) {
+      parts.push(`Still to do: ${tasks[0]} and ${tasks[1]}.`);
+    } else if (tasks.length >= 3) {
+      parts.push(`Still to do: ${tasks.slice(0, 2).join(", ")}, and ${tasks.length - 2} more.`);
+    }
+    return parts.join(" ");
   }
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "summary"), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: handleRefresh, title: "refresh" }, /* @__PURE__ */ React.createElement("span", { className: spinning ? "spin" : "" }, Icon.refresh))), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
     "div",

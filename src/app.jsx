@@ -225,38 +225,43 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     const visible = realNotes.filter(n => !n.private);
     if (visible.length === 0) return 'All notes are set to private.';
 
-    const lines = [];
-
-    // Group by category
-    const grouped = {};
-    visible.forEach(n => {
-      const key = n.category || '';
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(n);
-    });
-
-    // Category-grouped note descriptions
-    Object.entries(grouped).forEach(([cat, notes]) => {
-      const descs = notes.map(n => {
-        const title = n.title?.trim();
-        const firstText = n.blocks.find(b => !b.done && b.text?.trim())?.text.trim() || '';
-        if (title && firstText) return `${title} — ${firstText}`;
-        return title || firstText || 'Untitled';
-      });
-      lines.push(cat ? `${cat}: ${descs.join(', ')}.` : descs.join(', ') + '.');
-    });
-
-    // Surface active checklist items
+    const sorted = [...visible].sort((a, b) => b.updatedAt - a.updatedAt);
     const tasks = visible.flatMap(n =>
       n.blocks.filter(b => b.type === 'check' && !b.done && b.text?.trim())
     ).map(b => b.text.trim());
-    if (tasks.length > 0) {
-      const shown = tasks.slice(0, 4);
-      const extra = tasks.length - shown.length;
-      lines.push(`Active: ${shown.join(', ')}${extra > 0 ? ` +${extra} more` : ''}.`);
+
+    function noteTitle(n) {
+      return n.title?.trim() || n.blocks.find(b => b.text?.trim())?.text.trim() || 'an untitled note';
+    }
+    function noteDesc(n) {
+      const title = n.title?.trim();
+      const first = n.blocks.find(b => !b.done && b.text?.trim())?.text.trim() || '';
+      if (title && first) return `${title} — ${first}`;
+      return title || first || 'an untitled note';
     }
 
-    return lines.join('\n');
+    const [recent, ...rest] = sorted;
+    const parts = [];
+
+    parts.push(`You were last working on ${noteDesc(recent)}.`);
+
+    if (rest.length === 1) {
+      parts.push(`You also have ${noteTitle(rest[0])}.`);
+    } else if (rest.length === 2) {
+      parts.push(`You also have ${noteTitle(rest[0])} and ${noteTitle(rest[1])}.`);
+    } else if (rest.length > 2) {
+      parts.push(`You also have ${noteTitle(rest[0])}, ${noteTitle(rest[1])}, and ${rest.length - 2} more.`);
+    }
+
+    if (tasks.length === 1) {
+      parts.push(`Still to do: ${tasks[0]}.`);
+    } else if (tasks.length === 2) {
+      parts.push(`Still to do: ${tasks[0]} and ${tasks[1]}.`);
+    } else if (tasks.length >= 3) {
+      parts.push(`Still to do: ${tasks.slice(0, 2).join(', ')}, and ${tasks.length - 2} more.`);
+    }
+
+    return parts.join(' ');
   }
 
   return (
