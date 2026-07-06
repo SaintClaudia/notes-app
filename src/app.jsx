@@ -273,10 +273,7 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 
       <div className="summary-section">
         <div className="summary-section-header">
-          <span className="summary-section-label">summary</span>
-          <button className="icon-btn-plain" onClick={handleRefresh} title="refresh">
-            <span className={spinning ? 'spin' : ''}>{Icon.refresh}</span>
-          </button>
+          <span className="summary-section-label">AI Summary</span>
         </div>
         <div className={'summary-text' + (realNotes.length === 0 ? ' placeholder' : '')}>
           {buildSummary()}
