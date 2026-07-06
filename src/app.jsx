@@ -475,12 +475,12 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
   function handleBlockKeyDown(e, block, index) {
     if (e.key === 'Enter') {
       e.preventDefault();
-      // Empty checklist block + Enter exits the list back to plain text
+      // Empty checklist block + Enter: remove the circle and replace with a text block
       if (block.type === 'check' && block.text === '') {
         const b = newBlock('text', '');
         setBlocks(prev => {
           const next = [...prev];
-          next.splice(index + 1, 0, b);
+          next.splice(index, 1, b);
           return next;
         });
         setFocusTarget({ id: b.id, pos: 0 });

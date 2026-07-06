@@ -364,7 +364,7 @@ function Editor({ note, categories, onChange, onAddCategory, onBack, onSave, onA
         const b = newBlock("text", "");
         setBlocks((prev) => {
           const next = [...prev];
-          next.splice(index + 1, 0, b);
+          next.splice(index, 1, b);
           return next;
         });
         setFocusTarget({ id: b.id, pos: 0 });
