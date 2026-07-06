@@ -259,61 +259,71 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     if (visible.length === 0) return 'All notes are set to private.';
 
     const sorted = [...visible].sort((a, b) => b.updatedAt - a.updatedAt);
+    const recent = sorted[0];
     const usedCats = [...new Set(visible.map(n => n.category).filter(Boolean))];
+
     const allActive = visible.flatMap(n => n.blocks.filter(b => b.type === 'check' && !b.done && stripHtml(b.text).trim()));
     const allDone = visible.flatMap(n => n.blocks.filter(b => b.type === 'check' && b.done && stripHtml(b.text).trim()));
+    const totalTasks = allActive.length + allDone.length;
 
-    function label(n) {
-      if (n.title?.trim()) return `"${n.title.trim()}"`;
-      const first = n.blocks.find(b => !b.done && stripHtml(b.text).trim());
-      const t = first ? stripHtml(first.text).trim() : '';
-      return t ? `"${t.length > 40 ? t.slice(0, 40) + '…' : t}"` : 'Untitled';
-    }
+    const notesWithOpen = visible.filter(n => n.blocks.some(b => b.type === 'check' && !b.done && stripHtml(b.text).trim()));
+    const notesAllChecked = visible.filter(n => {
+      const checks = n.blocks.filter(b => b.type === 'check' && stripHtml(b.text).trim());
+      return checks.length > 0 && checks.every(b => b.done);
+    });
 
-    function detail(n) {
-      const active = n.blocks.filter(b => b.type === 'check' && !b.done && stripHtml(b.text).trim());
-      const done = n.blocks.filter(b => b.type === 'check' && b.done && stripHtml(b.text).trim());
-      const total = active.length + done.length;
-      if (total > 0) {
-        if (active.length === 0) return `all ${total} done`;
-        if (done.length === 0) return `${active.length} task${active.length !== 1 ? 's' : ''} to do`;
-        return `${done.length} of ${total} tasks done`;
-      }
-      const texts = n.blocks.filter(b => b.type === 'text' && !b.done && stripHtml(b.text).trim());
-      if (texts.length === 0) return null;
-      const allText = texts.map(b => stripHtml(b.text).trim()).join(' ');
-      const words = allText.split(/\s+/);
-      return words.slice(0, 10).join(' ') + (words.length > 10 ? '…' : '');
+    function noteLabel(n) {
+      return n.title?.trim() ? `"${n.title.trim()}"` : null;
     }
 
     const parts = [];
 
-    if (usedCats.length > 1) {
-      const catStr = usedCats.map(cat => {
-        const count = visible.filter(n => n.category === cat).length;
-        return `${count} ${cat}`;
-      }).join(', ');
-      parts.push(`${visible.length} note${visible.length !== 1 ? 's' : ''} — ${catStr}.`);
-    } else if (usedCats.length === 1) {
-      parts.push(`${visible.length} note${visible.length !== 1 ? 's' : ''} in ${usedCats[0]}.`);
+    // Status interpretation
+    if (totalTasks === 0) {
+      parts.push(visible.length === 1 ? 'One note, no tasks yet.' : `${visible.length} notes, no tasks yet.`);
+    } else if (allActive.length === 0) {
+      parts.push(totalTasks === 1 ? 'One task done — all clear.' : `All ${totalTasks} tasks checked off — fully caught up.`);
     } else {
-      parts.push(`${visible.length} note${visible.length !== 1 ? 's' : ''}.`);
+      const pct = allDone.length / totalTasks;
+      if (allDone.length === 0) {
+        parts.push(allActive.length === 1 ? 'One task open, just getting started.' : `${allActive.length} tasks open, none checked off yet.`);
+      } else if (pct >= 0.8) {
+        parts.push(`Almost done — ${allActive.length} task${allActive.length !== 1 ? 's' : ''} left out of ${totalTasks}.`);
+      } else if (pct >= 0.5) {
+        parts.push(`Over halfway — ${allDone.length} of ${totalTasks} tasks done.`);
+      } else {
+        parts.push(`${allDone.length} of ${totalTasks} tasks done, ${allActive.length} to go.`);
+      }
     }
 
-    sorted.slice(0, 6).forEach(n => {
-      const d = detail(n);
-      parts.push(d ? `${label(n)}: ${d}.` : `${label(n)}.`);
-    });
-    if (sorted.length > 6) parts.push(`...and ${sorted.length - 6} more.`);
+    // Notes in progress vs wrapped up
+    if (notesWithOpen.length > 0 && notesAllChecked.length > 0) {
+      parts.push(`${notesWithOpen.length} note${notesWithOpen.length !== 1 ? 's' : ''} in progress, ${notesAllChecked.length} wrapped up.`);
+    } else if (notesWithOpen.length > 1) {
+      parts.push(`Tasks spread across ${notesWithOpen.length} notes.`);
+    }
 
-    if (allActive.length + allDone.length > 0) {
-      if (allActive.length === 0) {
-        parts.push(`All tasks complete.`);
-      } else if (allActive.length === 1) {
-        parts.push(`Still to do: ${stripHtml(allActive[0].text).trim()}.`);
+    // Recent activity
+    const recentLabel = noteLabel(recent);
+    if (recentLabel) {
+      const recentActive = recent.blocks.filter(b => b.type === 'check' && !b.done && stripHtml(b.text).trim()).length;
+      const recentDone = recent.blocks.filter(b => b.type === 'check' && b.done && stripHtml(b.text).trim()).length;
+      if (recentActive > 0) {
+        parts.push(`Last working on ${recentLabel} — ${recentActive} task${recentActive !== 1 ? 's' : ''} left.`);
+      } else if (recentDone > 0) {
+        parts.push(`Last working on ${recentLabel} — all done there.`);
       } else {
-        const top = allActive.slice(0, 2).map(b => stripHtml(b.text).trim()).join(', ');
-        parts.push(`${allActive.length} tasks open: ${top}${allActive.length > 2 ? `, and ${allActive.length - 2} more` : ''}.`);
+        parts.push(`Last working on ${recentLabel}.`);
+      }
+    }
+
+    // Active categories
+    if (usedCats.length >= 2) {
+      const activeCats = usedCats.filter(cat =>
+        visible.some(n => n.category === cat && n.blocks.some(b => b.type === 'check' && !b.done && stripHtml(b.text).trim()))
+      );
+      if (activeCats.length >= 2) {
+        parts.push(`Open tasks in ${activeCats.slice(0, 2).join(' and ')}${activeCats.length > 2 ? ' and more' : ''}.`);
       }
     }
 
@@ -329,7 +339,7 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
 
       <div className="summary-section">
         <div className="summary-section-header">
-          <span className="summary-section-label">AI Summary</span>
+          <span className="summary-section-label">Snapshot</span>
         </div>
         <div className={'summary-text' + (realNotes.length === 0 ? ' placeholder' : '')}>
           {buildSummary()}

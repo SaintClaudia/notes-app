@@ -233,60 +233,64 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     const visible = realNotes.filter((n) => !n.private);
     if (visible.length === 0) return "All notes are set to private.";
     const sorted = [...visible].sort((a, b) => b.updatedAt - a.updatedAt);
+    const recent = sorted[0];
     const usedCats = [...new Set(visible.map((n) => n.category).filter(Boolean))];
     const allActive = visible.flatMap((n) => n.blocks.filter((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()));
     const allDone = visible.flatMap((n) => n.blocks.filter((b) => b.type === "check" && b.done && stripHtml(b.text).trim()));
-    function label(n) {
-      if (n.title?.trim()) return `"${n.title.trim()}"`;
-      const first = n.blocks.find((b) => !b.done && stripHtml(b.text).trim());
-      const t = first ? stripHtml(first.text).trim() : "";
-      return t ? `"${t.length > 40 ? t.slice(0, 40) + "\u2026" : t}"` : "Untitled";
-    }
-    function detail(n) {
-      const active = n.blocks.filter((b) => b.type === "check" && !b.done && stripHtml(b.text).trim());
-      const done = n.blocks.filter((b) => b.type === "check" && b.done && stripHtml(b.text).trim());
-      const total = active.length + done.length;
-      if (total > 0) {
-        if (active.length === 0) return `all ${total} done`;
-        if (done.length === 0) return `${active.length} task${active.length !== 1 ? "s" : ""} to do`;
-        return `${done.length} of ${total} tasks done`;
-      }
-      const texts = n.blocks.filter((b) => b.type === "text" && !b.done && stripHtml(b.text).trim());
-      if (texts.length === 0) return null;
-      const allText = texts.map((b) => stripHtml(b.text).trim()).join(" ");
-      const words = allText.split(/\s+/);
-      return words.slice(0, 10).join(" ") + (words.length > 10 ? "\u2026" : "");
+    const totalTasks = allActive.length + allDone.length;
+    const notesWithOpen = visible.filter((n) => n.blocks.some((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()));
+    const notesAllChecked = visible.filter((n) => {
+      const checks = n.blocks.filter((b) => b.type === "check" && stripHtml(b.text).trim());
+      return checks.length > 0 && checks.every((b) => b.done);
+    });
+    function noteLabel(n) {
+      return n.title?.trim() ? `"${n.title.trim()}"` : null;
     }
     const parts = [];
-    if (usedCats.length > 1) {
-      const catStr = usedCats.map((cat) => {
-        const count = visible.filter((n) => n.category === cat).length;
-        return `${count} ${cat}`;
-      }).join(", ");
-      parts.push(`${visible.length} note${visible.length !== 1 ? "s" : ""} \u2014 ${catStr}.`);
-    } else if (usedCats.length === 1) {
-      parts.push(`${visible.length} note${visible.length !== 1 ? "s" : ""} in ${usedCats[0]}.`);
+    if (totalTasks === 0) {
+      parts.push(visible.length === 1 ? "One note, no tasks yet." : `${visible.length} notes, no tasks yet.`);
+    } else if (allActive.length === 0) {
+      parts.push(totalTasks === 1 ? "One task done \u2014 all clear." : `All ${totalTasks} tasks checked off \u2014 fully caught up.`);
     } else {
-      parts.push(`${visible.length} note${visible.length !== 1 ? "s" : ""}.`);
-    }
-    sorted.slice(0, 6).forEach((n) => {
-      const d = detail(n);
-      parts.push(d ? `${label(n)}: ${d}.` : `${label(n)}.`);
-    });
-    if (sorted.length > 6) parts.push(`...and ${sorted.length - 6} more.`);
-    if (allActive.length + allDone.length > 0) {
-      if (allActive.length === 0) {
-        parts.push(`All tasks complete.`);
-      } else if (allActive.length === 1) {
-        parts.push(`Still to do: ${stripHtml(allActive[0].text).trim()}.`);
+      const pct = allDone.length / totalTasks;
+      if (allDone.length === 0) {
+        parts.push(allActive.length === 1 ? "One task open, just getting started." : `${allActive.length} tasks open, none checked off yet.`);
+      } else if (pct >= 0.8) {
+        parts.push(`Almost done \u2014 ${allActive.length} task${allActive.length !== 1 ? "s" : ""} left out of ${totalTasks}.`);
+      } else if (pct >= 0.5) {
+        parts.push(`Over halfway \u2014 ${allDone.length} of ${totalTasks} tasks done.`);
       } else {
-        const top = allActive.slice(0, 2).map((b) => stripHtml(b.text).trim()).join(", ");
-        parts.push(`${allActive.length} tasks open: ${top}${allActive.length > 2 ? `, and ${allActive.length - 2} more` : ""}.`);
+        parts.push(`${allDone.length} of ${totalTasks} tasks done, ${allActive.length} to go.`);
+      }
+    }
+    if (notesWithOpen.length > 0 && notesAllChecked.length > 0) {
+      parts.push(`${notesWithOpen.length} note${notesWithOpen.length !== 1 ? "s" : ""} in progress, ${notesAllChecked.length} wrapped up.`);
+    } else if (notesWithOpen.length > 1) {
+      parts.push(`Tasks spread across ${notesWithOpen.length} notes.`);
+    }
+    const recentLabel = noteLabel(recent);
+    if (recentLabel) {
+      const recentActive = recent.blocks.filter((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()).length;
+      const recentDone = recent.blocks.filter((b) => b.type === "check" && b.done && stripHtml(b.text).trim()).length;
+      if (recentActive > 0) {
+        parts.push(`Last working on ${recentLabel} \u2014 ${recentActive} task${recentActive !== 1 ? "s" : ""} left.`);
+      } else if (recentDone > 0) {
+        parts.push(`Last working on ${recentLabel} \u2014 all done there.`);
+      } else {
+        parts.push(`Last working on ${recentLabel}.`);
+      }
+    }
+    if (usedCats.length >= 2) {
+      const activeCats = usedCats.filter(
+        (cat) => visible.some((n) => n.category === cat && n.blocks.some((b) => b.type === "check" && !b.done && stripHtml(b.text).trim()))
+      );
+      if (activeCats.length >= 2) {
+        parts.push(`Open tasks in ${activeCats.slice(0, 2).join(" and ")}${activeCats.length > 2 ? " and more" : ""}.`);
       }
     }
     return parts.join(" ");
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "AI Summary")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "Snapshot")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
     "div",
     {
       key: b.cat,
