@@ -4,13 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/app.jsx --bundle=false --jsx=transform --jsx-factory=React.createElement --jsx-fragment=React.Fragment --outfile=app.js"
+    "build": "esbuild src/app.jsx --bundle=false --jsx=transform --jsx-factory=React.createElement --jsx-fragment=React.Fragment --outfile=app.js",
+    "sync:www": "cp app.js style.css manifest.json favicon.svg favicon.png apple-touch-icon.png apple-touch-icon-v2.png icon-192.png icon-512.png www/ && npx cap sync ios",
+    "ios": "npm run build && npm run sync:www && npx cap open ios"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "esbuild": "^0.28.1"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1"
   }
 }
