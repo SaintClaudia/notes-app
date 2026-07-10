@@ -1,5 +1,6 @@
 const { useState, useEffect, useRef, useCallback, useLayoutEffect } = React;
 const DEFAULT_CATEGORIES = ["Ideas", "Lists", "Tasks", "Work"];
+const SUMMARY_PROXY_URL = "https://notes-summary-proxy.saint-claudia.workers.dev/summarize";
 const storageAdapter = {
   async get(key) {
     try {
@@ -13,6 +14,49 @@ const storageAdapter = {
     try {
       localStorage.setItem("notesapp_" + key, value);
       return { key, value };
+    } catch (e) {
+      return null;
+    }
+  }
+};
+const isNativePlatform = typeof Capacitor !== "undefined" && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+const cloudKitPlugin = isNativePlatform && Capacitor.Plugins && Capacitor.Plugins.CloudKitSync;
+const cloudKitAdapter = {
+  async saveNote(note) {
+    if (!cloudKitPlugin) return;
+    try {
+      await cloudKitPlugin.saveNote({ noteJson: JSON.stringify(note) });
+    } catch (e) {
+    }
+  },
+  async deleteNote(id) {
+    if (!cloudKitPlugin) return;
+    try {
+      await cloudKitPlugin.deleteNote({ id });
+    } catch (e) {
+    }
+  },
+  async fetchAllNotes() {
+    if (!cloudKitPlugin) return null;
+    try {
+      const r = await cloudKitPlugin.fetchAllNotes();
+      return JSON.parse(r.notesJson || "[]");
+    } catch (e) {
+      return null;
+    }
+  },
+  async saveCategories(categories) {
+    if (!cloudKitPlugin) return;
+    try {
+      await cloudKitPlugin.saveCategories({ categoriesJson: JSON.stringify(categories) });
+    } catch (e) {
+    }
+  },
+  async fetchCategories() {
+    if (!cloudKitPlugin) return null;
+    try {
+      const r = await cloudKitPlugin.fetchCategories();
+      return JSON.parse(r.categoriesJson || "[]");
     } catch (e) {
       return null;
     }
@@ -129,6 +173,11 @@ function App() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [editingId, setEditingId] = useState(null);
   const [storageOk, setStorageOk] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [aiSummary, setAiSummary] = useState("");
+  const summaryTimer = useRef(null);
+  const cloudPushTimer = useRef(null);
+  const lastPushedRef = useRef(/* @__PURE__ */ new Map());
   useEffect(() => {
     (async () => {
       let loadedNotes = [];
@@ -143,6 +192,11 @@ function App() {
       } catch (e) {
         setCategories(DEFAULT_CATEGORIES);
       }
+      try {
+        const seen = await storageAdapter.get("onboarding_seen");
+        if (!seen) setShowOnboarding(true);
+      } catch (e) {
+      }
       const n = newNote();
       const next = [n, ...loadedNotes];
       setNotes(next);
@@ -151,8 +205,56 @@ function App() {
         await storageAdapter.set("notes_v2", JSON.stringify(next));
       } catch (e) {
       }
+      if (isNativePlatform) mergeFromCloud();
     })();
   }, []);
+  const mergeFromCloud = useCallback(async () => {
+    if (!isNativePlatform) return;
+    const cloudNotes = await cloudKitAdapter.fetchAllNotes();
+    if (cloudNotes && cloudNotes.length) {
+      setNotes((prev) => {
+        const byId = new Map(prev.map((n) => [n.id, n]));
+        cloudNotes.forEach((cn) => {
+          const normalized = normalizeNote(cn);
+          const local = byId.get(normalized.id);
+          if (!local || (normalized.updatedAt || 0) > (local.updatedAt || 0)) {
+            byId.set(normalized.id, normalized);
+            lastPushedRef.current.set(normalized.id, normalized.updatedAt);
+          }
+        });
+        const merged = Array.from(byId.values());
+        storageAdapter.set("notes_v2", JSON.stringify(merged)).catch(() => {
+        });
+        return merged;
+      });
+    }
+    const cloudCategories = await cloudKitAdapter.fetchCategories();
+    if (cloudCategories && cloudCategories.length) {
+      setCategories(cloudCategories);
+      storageAdapter.set("categories_v1", JSON.stringify(cloudCategories)).catch(() => {
+      });
+    }
+  }, []);
+  useEffect(() => {
+    if (!isNativePlatform) return;
+    document.addEventListener("resume", mergeFromCloud);
+    return () => document.removeEventListener("resume", mergeFromCloud);
+  }, [mergeFromCloud]);
+  useEffect(() => {
+    if (!isNativePlatform || notes === null) return;
+    if (cloudPushTimer.current) clearTimeout(cloudPushTimer.current);
+    cloudPushTimer.current = setTimeout(() => {
+      notes.forEach((n) => {
+        if (isNoteEmpty(n)) return;
+        if (lastPushedRef.current.get(n.id) === n.updatedAt) return;
+        lastPushedRef.current.set(n.id, n.updatedAt);
+        cloudKitAdapter.saveNote(n);
+      });
+    }, 1200);
+    return () => {
+      if (cloudPushTimer.current) clearTimeout(cloudPushTimer.current);
+    };
+  }, [notes]);
   const persist = useCallback(async (next) => {
     setNotes(next);
     try {
@@ -168,7 +270,48 @@ function App() {
       await storageAdapter.set("categories_v1", JSON.stringify(next));
     } catch (e) {
     }
+    if (isNativePlatform) cloudKitAdapter.saveCategories(next);
   }, []);
+  function finishOnboarding() {
+    setShowOnboarding(false);
+    storageAdapter.set("onboarding_seen", "1");
+  }
+  const generateAiSummary = useCallback(async (currentNotes) => {
+    try {
+      const visible = currentNotes.filter((n) => !n.archived && !n.private && !isNoteEmpty(n));
+      if (visible.length === 0) {
+        setAiSummary("");
+        return;
+      }
+      const payloadNotes = visible.map((n) => ({
+        title: n.title,
+        tags: n.tags,
+        lines: n.blocks.filter((b) => b.text && stripHtml(b.text).trim()).map((b) => (b.type === "check" && !b.done ? "[ ] " : "") + stripHtml(b.text).trim())
+      }));
+      let deviceId = (await storageAdapter.get("device_id"))?.value;
+      if (!deviceId) {
+        deviceId = uid();
+        await storageAdapter.set("device_id", deviceId);
+      }
+      const response = await fetch(SUMMARY_PROXY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Device-Id": deviceId },
+        body: JSON.stringify({ notes: payloadNotes })
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.summary) setAiSummary(data.summary);
+    } catch (e) {
+    }
+  }, []);
+  useEffect(() => {
+    if (notes === null) return;
+    if (summaryTimer.current) clearTimeout(summaryTimer.current);
+    summaryTimer.current = setTimeout(() => generateAiSummary(notes), 1200);
+    return () => {
+      if (summaryTimer.current) clearTimeout(summaryTimer.current);
+    };
+  }, [notes, generateAiSummary]);
   if (notes === null) {
     return /* @__PURE__ */ React.createElement("div", { style: { padding: "40px", color: "var(--muted)" } }, "loading", /* @__PURE__ */ React.createElement("span", { className: "cursor-blink" }));
   }
@@ -195,9 +338,11 @@ function App() {
   function deleteNote(id) {
     persist(notes.filter((n) => n.id !== id));
     setEditingId(null);
+    if (isNativePlatform) cloudKitAdapter.deleteNote(id);
   }
   function deleteMany(ids) {
     persist(notes.filter((n) => !ids.has(n.id)));
+    if (isNativePlatform) ids.forEach((id) => cloudKitAdapter.deleteNote(id));
   }
   function pinNote(id) {
     persist(notes.map((n) => n.id === id ? { ...n, pinned: !n.pinned } : n));
@@ -248,6 +393,7 @@ function App() {
       notes,
       categories,
       storageOk,
+      aiSummary,
       onOpenNote: openNote
     }
   ) : /* @__PURE__ */ React.createElement(NotesList, { notes, categories, onOpenNote: openNote, onDeleteMany: deleteMany, onPinNote: pinNote })), /* @__PURE__ */ React.createElement("nav", { className: "bottom-nav", "aria-label": "Primary" }, /* @__PURE__ */ React.createElement(
@@ -270,9 +416,47 @@ function App() {
     },
     Icon.list,
     /* @__PURE__ */ React.createElement("span", { className: "nav-label" }, "notes")
-  )));
+  )), showOnboarding && /* @__PURE__ */ React.createElement(Onboarding, { onDone: finishOnboarding }));
 }
-function Dashboard({ notes, categories, storageOk, onOpenNote }) {
+const ONBOARDING_SLIDES = [
+  { icon: Icon.list, title: "Welcome to Notes", body: "Fast, private note-taking that stays out of your way." },
+  { icon: Icon.plus, title: "Capture instantly", body: "Tap + anytime to start a new note \u2014 mix free text and checklists in the same note." },
+  { icon: Icon.search, title: "Tag & find", body: "Add tags to group related notes, then filter or search to find anything fast." },
+  { icon: Icon.eyeOff, title: "Keep it private", body: "Mark a note private to hide its contents from previews and summaries." }
+];
+function Onboarding({ onDone }) {
+  const [step, setStep] = useState(0);
+  const touchX = useRef(null);
+  const last = step === ONBOARDING_SLIDES.length - 1;
+  const slide = ONBOARDING_SLIDES[step];
+  function next() {
+    last ? onDone() : setStep((s) => s + 1);
+  }
+  function back() {
+    setStep((s) => Math.max(0, s - 1));
+  }
+  function onTouchStart(e) {
+    touchX.current = e.touches[0].clientX;
+  }
+  function onTouchEnd(e) {
+    if (touchX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    touchX.current = null;
+    if (dx < -40) next();
+    else if (dx > 40) back();
+  }
+  return /* @__PURE__ */ React.createElement("div", { className: "onboarding-overlay", onTouchStart, onTouchEnd }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "onboarding-skip", onClick: onDone }, "Skip"), /* @__PURE__ */ React.createElement("div", { className: "onboarding-slide", key: step }, /* @__PURE__ */ React.createElement("div", { className: "onboarding-icon" }, slide.icon), /* @__PURE__ */ React.createElement("h2", { className: "onboarding-title" }, slide.title), /* @__PURE__ */ React.createElement("p", { className: "onboarding-body" }, slide.body)), /* @__PURE__ */ React.createElement("div", { className: "onboarding-dots" }, ONBOARDING_SLIDES.map((_, i) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: i,
+      type: "button",
+      "aria-label": `Go to slide ${i + 1}`,
+      className: "onboarding-dot" + (i === step ? " active" : ""),
+      onClick: () => setStep(i)
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "onboarding-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "onboarding-back", onClick: back, disabled: step === 0 }, "Back"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "primary onboarding-next", onClick: next }, last ? "Get started" : "Next")));
+}
+function Dashboard({ notes, categories, storageOk, aiSummary, onOpenNote }) {
   const [activeFilter, setActiveFilter] = useState(null);
   const realNotes = notes.filter((n) => !n.archived && !isNoteEmpty(n));
   const catCounts = categories.map((cat) => ({ cat, count: realNotes.filter((n) => n.tags.includes(cat)).length })).filter((b) => b.count > 0);
@@ -422,7 +606,7 @@ function Dashboard({ notes, categories, storageOk, onOpenNote }) {
     }
     return sentences.join(" ");
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "Snapshot")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "Snapshot")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, aiSummary || buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -619,7 +803,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
       "aria-label": "Delete selected notes"
     },
     Icon.trash
-  ), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: exitEdit }, "done")) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setIsEditing(true) }, "edit"))), !isEditing && /* @__PURE__ */ React.createElement("div", { className: "search-box" }, Icon.search, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search notes...", value: q, onChange: (e) => setQ(e.target.value), autoFocus: true })), !isEditing && usedCats.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-chips" }, usedCats.map((cat) => /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: exitEdit }, "done")) : /* @__PURE__ */ React.createElement("button", { className: "icon-btn-plain", onClick: () => setIsEditing(true) }, "edit"))), !isEditing && /* @__PURE__ */ React.createElement("div", { className: "search-box" }, Icon.search, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search notes...", value: q, onChange: (e) => setQ(e.target.value), autoFocus: !isNativePlatform })), !isEditing && usedCats.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "filter-chips" }, usedCats.map((cat) => /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",

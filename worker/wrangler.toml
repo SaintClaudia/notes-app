@@ -1,0 +1,9 @@
+name = "notes-summary-proxy"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "b71a36fc61744c3581c0c6d98150d194"
+
+# Set the real key with: wrangler secret put ANTHROPIC_API_KEY
