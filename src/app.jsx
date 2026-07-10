@@ -442,7 +442,7 @@ function App() {
 
 /* ---------- Onboarding ---------- */
 const ONBOARDING_SLIDES = [
-  { icon: Icon.list, title: 'Welcome to Notes', body: 'Fast, private note-taking that stays out of your way.' },
+  { icon: Icon.list, title: 'Welcome to notes4U', body: 'Fast, private note-taking that stays out of your way.' },
   { icon: Icon.plus, title: 'Capture instantly', body: 'Tap + anytime to start a new note — mix free text and checklists in the same note.' },
   { icon: Icon.search, title: 'Tag & find', body: 'Add tags to group related notes, then filter or search to find anything fast.' },
   { icon: Icon.eyeOff, title: 'Keep it private', body: 'Mark a note private to hide its contents from previews and summaries.' },
@@ -682,7 +682,7 @@ function Dashboard({ notes, categories, storageOk, aiSummary, onOpenNote }) {
   return (
     <div>
       <header className="topbar">
-        <div className="brand"><span className="dot"></span>notes</div>
+        <div className="brand"><span className="dot"></span>notes4U</div>
       </header>
       {!storageOk && <div className="empty-msg" style={{ color: 'var(--danger)' }}>storage error — changes may not save</div>}
 
@@ -916,7 +916,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
   return (
     <div>
       <header className="topbar">
-        <div className="brand"><span className="dot"></span>notes</div>
+        <div className="brand"><span className="dot"></span>notes4U</div>
         <div className="topbar-actions">
           {isEditing ? (
             <>
