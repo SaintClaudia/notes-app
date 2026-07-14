@@ -171,7 +171,7 @@ const Icon = {
   mic: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>,
   send: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>,
   pin: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>,
-  key: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="8" cy="15" r="5"/><line x1="13" y1="10" x2="22" y2="10"/><line x1="19" y1="10" x2="19" y2="13"/></svg>,
+  key: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L22 7l-3-3"/></svg>,
   refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
   eye: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
   eyeOff: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
@@ -442,10 +442,11 @@ function App() {
 
 /* ---------- Onboarding ---------- */
 const ONBOARDING_SLIDES = [
-  { icon: Icon.list, title: 'Welcome to notes4U', body: 'Fast, private note-taking that stays out of your way.' },
-  { icon: Icon.plus, title: 'Capture instantly', body: 'Tap + anytime to start a new note — mix free text and checklists in the same note.' },
-  { icon: Icon.search, title: 'Tag & find', body: 'Add tags to group related notes, then filter or search to find anything fast.' },
-  { icon: Icon.eyeOff, title: 'Keep it private', body: 'Mark a note private to hide its contents from previews and summaries.' },
+  { icon: <img src="onboarding-hotdog.png" alt="" className="onboarding-hotdog" />, title: 'Welcome to Modo', body: 'Notes for people who build things.' },
+  { icon: Icon.plus, title: 'Capture instantly', body: 'Open Modo and start writing.' },
+  { icon: Icon.pin, title: 'Tag & pin', body: 'Group related notes with tags.\nPin the ones you return to most.' },
+  { icon: Icon.grid, title: 'Snapshot', body: "Get an AI summary of what has your attention and what's still in motion." },
+  { icon: <img src="onboarding-key.png" alt="" className="onboarding-key" />, title: 'Bring your own key', body: 'Add your API key to power summaries with AI on your terms.' },
 ];
 
 function Onboarding({ onDone }) {
@@ -682,7 +683,7 @@ function Dashboard({ notes, categories, storageOk, aiSummary, onOpenNote }) {
   return (
     <div>
       <header className="topbar">
-        <div className="brand"><span className="dot"></span>notes4U</div>
+        <div className="brand"><span className="dot"></span>Modo</div>
       </header>
       {!storageOk && <div className="empty-msg" style={{ color: 'var(--danger)' }}>storage error — changes may not save</div>}
 
@@ -916,7 +917,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
   return (
     <div>
       <header className="topbar">
-        <div className="brand"><span className="dot"></span>notes4U</div>
+        <div className="brand"><span className="dot"></span>Modo</div>
         <div className="topbar-actions">
           {isEditing ? (
             <>

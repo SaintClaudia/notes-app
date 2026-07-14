@@ -52,8 +52,9 @@ button {
   padding: 6px 10px; transition: border-color .12s, color .12s;
 }
 button:hover { border-color: var(--accent); color: var(--accent); }
-button.primary { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 button.primary:hover { background: var(--accent); color: #fff; }
+button.primary:disabled { background: var(--accent-dim); }
 button:disabled { opacity: .45; cursor: default; }
 
 input[type=text] {
@@ -355,8 +356,10 @@ input[type=password]::placeholder { color: #5a5a5a; }
   display: flex; align-items: center; justify-content: center;
 }
 .onboarding-icon svg { width: 26px; height: 26px; }
+.onboarding-icon .onboarding-hotdog { width: 34px; height: auto; }
+.onboarding-icon .onboarding-key { width: 32px; height: auto; }
 .onboarding-title { font-size: 18px; font-weight: 600; color: var(--text); margin: 0; }
-.onboarding-body { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0; }
+.onboarding-body { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0; white-space: pre-line; }
 .onboarding-dots { display: flex; justify-content: center; gap: 7px; padding: 16px 0; }
 .onboarding-dot {
   width: 7px; height: 7px; border-radius: 50%; padding: 0;

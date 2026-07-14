@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "esbuild src/app.jsx --bundle=false --jsx=transform --jsx-factory=React.createElement --jsx-fragment=React.Fragment --outfile=app.js",
-    "sync:www": "cp index.html app.js style.css manifest.json favicon.svg favicon.png apple-touch-icon.png apple-touch-icon-v2.png icon-192.png icon-512.png www/ && cp -R vendor www/ && npx cap sync ios",
+    "sync:www": "cp index.html app.js style.css manifest.json favicon.svg favicon.png apple-touch-icon.png apple-touch-icon-v2.png icon-192.png icon-512.png onboarding-hotdog.png onboarding-key.png www/ && cp -R vendor www/ && npx cap sync ios",
     "ios": "npm run build && npm run sync:www && npx cap open ios"
   },
   "keywords": [],

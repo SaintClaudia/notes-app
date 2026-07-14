@@ -161,7 +161,7 @@ const Icon = {
   mic: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("rect", { x: "9", y: "2", width: "6", height: "12", rx: "3" }), /* @__PURE__ */ React.createElement("path", { d: "M5 10v1a7 7 0 0 0 14 0v-1" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "18", x2: "12", y2: "22" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "22", x2: "16", y2: "22" })),
   send: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "5", y1: "12", x2: "19", y2: "12" }), /* @__PURE__ */ React.createElement("polyline", { points: "13 6 19 12 13 18" })),
   pin: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "17", x2: "12", y2: "22" }), /* @__PURE__ */ React.createElement("path", { d: "M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" })),
-  key: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("circle", { cx: "8", cy: "15", r: "5" }), /* @__PURE__ */ React.createElement("line", { x1: "13", y1: "10", x2: "22", y2: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "19", y1: "10", x2: "19", y2: "13" })),
+  key: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("circle", { cx: "7.5", cy: "15.5", r: "5.5" }), /* @__PURE__ */ React.createElement("path", { d: "M21 2l-9.6 9.6" }), /* @__PURE__ */ React.createElement("path", { d: "M15.5 7.5l3 3L22 7l-3-3" })),
   refresh: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("polyline", { points: "23 4 23 10 17 10" }), /* @__PURE__ */ React.createElement("path", { d: "M20.49 15a9 9 0 1 1-2.12-9.36L23 10" })),
   eye: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" })),
   eyeOff: /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8" }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" })),
@@ -419,10 +419,11 @@ function App() {
   )), showOnboarding && /* @__PURE__ */ React.createElement(Onboarding, { onDone: finishOnboarding }));
 }
 const ONBOARDING_SLIDES = [
-  { icon: Icon.list, title: "Welcome to notes4U", body: "Fast, private note-taking that stays out of your way." },
-  { icon: Icon.plus, title: "Capture instantly", body: "Tap + anytime to start a new note \u2014 mix free text and checklists in the same note." },
-  { icon: Icon.search, title: "Tag & find", body: "Add tags to group related notes, then filter or search to find anything fast." },
-  { icon: Icon.eyeOff, title: "Keep it private", body: "Mark a note private to hide its contents from previews and summaries." }
+  { icon: /* @__PURE__ */ React.createElement("img", { src: "onboarding-hotdog.png", alt: "", className: "onboarding-hotdog" }), title: "Welcome to Modo", body: "Notes for people who build things." },
+  { icon: Icon.plus, title: "Capture instantly", body: "Open Modo and start writing." },
+  { icon: Icon.pin, title: "Tag & pin", body: "Group related notes with tags.\nPin the ones you return to most." },
+  { icon: Icon.grid, title: "Snapshot", body: "Get an AI summary of what has your attention and what's still in motion." },
+  { icon: /* @__PURE__ */ React.createElement("img", { src: "onboarding-key.png", alt: "", className: "onboarding-key" }), title: "Bring your own key", body: "Add your API key to power summaries with AI on your terms." }
 ];
 function Onboarding({ onDone }) {
   const [step, setStep] = useState(0);
@@ -606,7 +607,7 @@ function Dashboard({ notes, categories, storageOk, aiSummary, onOpenNote }) {
     }
     return sentences.join(" ");
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes4U")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "Snapshot")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, aiSummary || buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "Modo")), !storageOk && /* @__PURE__ */ React.createElement("div", { className: "empty-msg", style: { color: "var(--danger)" } }, "storage error \u2014 changes may not save"), /* @__PURE__ */ React.createElement("div", { className: "summary-section" }, /* @__PURE__ */ React.createElement("div", { className: "summary-section-header" }, /* @__PURE__ */ React.createElement("span", { className: "summary-section-label" }, "Snapshot")), /* @__PURE__ */ React.createElement("div", { className: "summary-text" + (realNotes.length === 0 ? " placeholder" : "") }, aiSummary || buildSummary())), catCounts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cat-filter-grid" }, catCounts.map((b) => /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -793,7 +794,7 @@ function NotesList({ notes, categories, onOpenNote, onDeleteMany, onPinNote }) {
       onOpenNote(id);
     }
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "notes4U"), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" }, isEditing ? /* @__PURE__ */ React.createElement(React.Fragment, null, selected.size > 0 && /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("header", { className: "topbar" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("span", { className: "dot" }), "Modo"), /* @__PURE__ */ React.createElement("div", { className: "topbar-actions" }, isEditing ? /* @__PURE__ */ React.createElement(React.Fragment, null, selected.size > 0 && /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "icon-btn-plain",
